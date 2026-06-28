@@ -1,0 +1,15 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+
+# generated extraction output (large, machine-made)
+data/staging/
+
+# keep the corpus folder structure + docs, but not the actual data files
+data/corpus/**
+!data/corpus/**/
+!data/corpus/SOURCES.md
+!data/corpus/**/.gitkeep

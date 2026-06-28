@@ -1,0 +1,46 @@
+# Level 0 — local, free infrastructure. All three run on your machine ($0).
+#   Neo4j    = the "connections store" (graph + built-in meaning/vector search)
+#   Postgres = app state + the time-series table for equipment readings
+#   MinIO    = raw document storage (S3-compatible, local)
+services:
+  neo4j:
+    image: neo4j:5.23-community
+    container_name: brain-neo4j
+    ports:
+      - "7474:7474"   # browser UI  -> http://localhost:7474
+      - "7687:7687"   # bolt (app connects here)
+    environment:
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:-password123}"
+      NEO4J_server_memory_pagecache_size: "512M"
+    volumes:
+      - neo4j_data:/data
+
+  postgres:
+    image: postgres:16
+    container_name: brain-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: brain
+      POSTGRES_PASSWORD: brain
+      POSTGRES_DB: brain
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio
+    container_name: brain-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # console UI -> http://localhost:9001
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+
+volumes:
+  neo4j_data:
+  pg_data:
+  minio_data:
