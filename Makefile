@@ -37,4 +37,7 @@ ingest-structured: ## Level 1 without AI/embeddings (runs with only Level 0 deps
 build-graph: ## Level 2: load staged facts into Neo4j (merge duplicates, validate links)
 	python scripts/build_graph.py
 
-.PHONY: up down logs install install-l1 init verify synth ingest ingest-structured build-graph
+ask:       ## Level 3a: ask the copilot — make ask Q="your question"
+	python scripts/ask.py "$(Q)"
+
+.PHONY: up down logs install install-l1 init verify synth ingest ingest-structured build-graph ask
