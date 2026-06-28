@@ -1,0 +1,141 @@
+# =============================================================================
+# Ontology profile: OIL & GAS / PROCESS PLANT  (the "vocabulary")
+# -----------------------------------------------------------------------------
+# This is the ONLY industry-specific file. The engine is generic — swap this
+# profile (e.g. for manufacturing or power) and everything else stays the same.
+#
+# Grounded in real standards:
+#   ISA-95     -> the Site > Area > Unit > Asset location hierarchy
+#   ISO 14224  -> equipment classes + failure modes (for maintenance / RCA)
+#   IEC 81346  -> reference-designation style tags (P-101, PSV-110A, ...)
+#
+# Design principle: ASSET-CENTRIC. The Asset is the hub; every document,
+# work order, inspection, incident, reading and person links back to it.
+# =============================================================================
+
+profile: oil_and_gas
+description: Asset-centric knowledge graph for an oil & gas / process plant.
+standards: [ISA-95, ISO-14224, IEC-81346]
+hub: Asset            # the centre of the graph
+
+# -----------------------------------------------------------------------------
+# NODE TYPES  (label = the kind of dot; key = the unique identifier property)
+# -----------------------------------------------------------------------------
+nodes:
+  - label: Asset
+    key: tag
+    description: A physical piece of equipment — the hub of the graph.
+    properties: [tag, name, asset_class, manufacturer, model, unit_ref, criticality]
+    asset_classes: [Pump, Valve, Vessel, HeatExchanger, Compressor, Instrument, Tank, Column]
+
+  # ISA-95 location hierarchy
+  - label: Site
+    key: name
+  - label: Area
+    key: name
+  - label: Unit
+    key: name
+
+  # Documents and their searchable passages
+  - label: Document
+    key: id
+    properties: [id, doc_type, title, path, source, ingested_at]
+    doc_types: [PID, WorkOrder, SOP, OperatingInstruction, InspectionReport,
+                ProjectFile, Email, Manual, IncidentReport, NearMiss,
+                AuditFinding, NonConformance, Permit, Regulation, QualityRecord]
+  - label: Chunk
+    key: id
+    description: A passage of a document; holds the meaning-fingerprint (embedding).
+    properties: [id, text, page, embedding]
+
+  # Operations & maintenance
+  - label: WorkOrder
+    key: wo_number
+    properties: [wo_number, action, date, status, performed_by]
+  - label: Inspection
+    key: inspection_id
+    properties: [inspection_id, type, last_inspection_date, result]
+  - label: Procedure
+    key: id
+    properties: [id, title, kind]          # kind: SOP | OperatingInstruction
+  - label: Permit
+    key: permit_no
+    properties: [permit_no, work_type, issue_date, status]
+  - label: Parameter
+    key: id
+    properties: [id, name, unit, setpoint]  # process parameters / setpoints
+
+  # Safety / regulatory / quality
+  - label: Regulation
+    key: code                                # e.g. OISD-STD-105
+  - label: RegClause
+    key: id
+  - label: RegRequirement
+    key: id
+    description: A machine-CHECKABLE rule the AI derives from a clause; verified by code.
+    properties: [id, applies_to_class, check_type, interval_days, parameter, operator, threshold]
+  - label: NonConformance
+    key: id
+    properties: [id, finding, raised_date, status]
+  - label: CAPA
+    key: id
+    description: Corrective / preventive action (QMS).
+    properties: [id, action, due_date, status]
+
+  # Failures & people
+  - label: FailureMode                       # ISO 14224 taxonomy
+    key: name
+  - label: Incident
+    key: id
+    properties: [id, title, date, severity]
+  - label: Person
+    key: id
+    pii: true                                # sensitive — access-controlled
+
+# -----------------------------------------------------------------------------
+# RELATIONSHIP TYPES  (the lines between dots)
+# -----------------------------------------------------------------------------
+relationships:
+  # location hierarchy
+  - {type: LOCATED_IN,  from: Asset, to: Unit}
+  - {type: PART_OF,     from: Unit,  to: Area}
+  - {type: PART_OF,     from: Area,  to: Site}
+  # physical relationships between assets (from P&IDs)
+  - {type: CONNECTED_TO, from: Asset, to: Asset}
+  - {type: COMPOSED_OF,  from: Asset, to: Asset}
+  # documents <-> assets
+  - {type: ABOUT,    from: Document, to: Asset}
+  - {type: PART_OF,  from: Chunk,    to: Document}
+  - {type: MENTIONS, from: Chunk,    to: Asset}
+  # operations & maintenance
+  - {type: MAINTAINS,  from: WorkOrder,  to: Asset}
+  - {type: INSPECTS,   from: Inspection, to: Asset}
+  - {type: GOVERNS,    from: Procedure,  to: Asset}
+  - {type: FOR_WORK_ON, from: Permit,    to: Asset}
+  - {type: HAS_PARAMETER, from: Asset,   to: Parameter}
+  - {type: PERFORMED,  from: Person,     to: WorkOrder}
+  # safety / regulatory / quality
+  - {type: PART_OF_REG,  from: RegClause,      to: Regulation}
+  - {type: GOVERNS,      from: RegClause,      to: Asset}
+  - {type: DERIVED_FROM, from: RegRequirement, to: RegClause}
+  - {type: APPLIES_TO,   from: RegRequirement, to: Asset}
+  - {type: RAISED_AGAINST, from: NonConformance, to: Asset}
+  - {type: ADDRESSES,    from: CAPA,           to: NonConformance}
+  # failures
+  - {type: INVOLVES,  from: Incident,    to: Asset}
+  - {type: CAUSED_BY, from: Incident,    to: FailureMode}
+  - {type: AFFECTS,   from: FailureMode, to: Asset}
+
+# -----------------------------------------------------------------------------
+# EXTRACTION — what we pull out of documents (the brief's required entities)
+# -----------------------------------------------------------------------------
+extract_entities: [equipment_tag, process_parameter, regulatory_reference, person, date]
+
+# Deterministic patterns (NO AI needed) for the predictable identifiers.
+patterns:
+  equipment_tag: '\b[A-Z]{1,3}-?\d{2,4}[A-Z]?\b'          # P-101, V-204, PSV-110A
+  regulatory_reference: 'OISD[- ]?(?:STD[- ]?)?\d{2,3}|29\s*CFR\s*1910\.\d+|IS\s*\d{3,5}'
+  date: '\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}'
+
+# Labels treated as sensitive personal data (role-based access in the copilot).
+pii_labels: [Person]
