@@ -1,7 +1,7 @@
 # Unified Asset & Operations Brain
 ET AI Hackathon 2026 · Problem Statement #8 — Industrial Knowledge Intelligence
 
-See **[PLAN.md](PLAN.md)** for the full plain-English plan. This README covers
+See **[PLAN.md](PLAN.md)** for the full plan. This README covers
 **Level 0 — the foundation**: infrastructure, the ontology, the provider switch,
 and a synthetic data generator. Everything runs locally and free.
 
