@@ -1,0 +1,4 @@
+# Level 1 — adds document parsing + local embeddings on top of Level 0.
+-r requirements-l0.txt
+docling>=2.0                 # parse PDFs / Office files
+sentence-transformers>=3.0   # local, free embeddings + reranker (BGE)
