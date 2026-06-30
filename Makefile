@@ -50,4 +50,10 @@ serve:     ## Level 3b: run the copilot web app (override port: make serve PORT=
 compliance: ## Level 4a: run the compliance checker -> reports/compliance_report.md
 	python scripts/check_compliance.py
 
-.PHONY: up down logs install install-l1 install-l3 init verify synth ingest ingest-structured build-graph ask serve compliance
+readings:  ## Level 4b: generate the synthetic sensor-readings feed (with a planted anomaly)
+	python scripts/generate_readings.py
+
+rca:       ## Level 4b: root-cause analysis for an asset — make rca ASSET=P-101B
+	python scripts/rca.py "$(ASSET)"
+
+.PHONY: up down logs install install-l1 install-l3 init verify synth ingest ingest-structured build-graph ask serve compliance readings rca
