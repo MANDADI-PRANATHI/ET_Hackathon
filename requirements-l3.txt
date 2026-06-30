@@ -1,0 +1,4 @@
+# Level 3b — the web API + chat UI (no Node needed).
+-r requirements-l1.txt
+fastapi>=0.110
+uvicorn[standard]>=0.29

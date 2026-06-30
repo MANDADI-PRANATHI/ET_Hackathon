@@ -28,7 +28,7 @@ def _sources(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
-def answer_question(retrieval: Dict[str, Any], llm=None) -> Dict[str, Any]:
+def answer_question(retrieval: Dict[str, Any], llm=None, role=None) -> Dict[str, Any]:
     question, chunks, facts = retrieval["question"], retrieval["chunks"], retrieval["facts"]
     sources = _sources(chunks)
     labeled_facts = [
@@ -46,7 +46,8 @@ def answer_question(retrieval: Dict[str, Any], llm=None) -> Dict[str, Any]:
         "Write the answer now, citing graph facts as [G1] and passages as [S1] where used."
     )
 
-    text = (llm or get_llm()).generate(prompt, system=SYSTEM)
+    system = SYSTEM + (f" Tailor the wording and emphasis for a {role}." if role else "")
+    text = (llm or get_llm()).generate(prompt, system=system)
     return {
         "question": question,
         "answer": text,
