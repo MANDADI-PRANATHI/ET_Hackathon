@@ -47,4 +47,7 @@ PORT ?= 8000
 serve:     ## Level 3b: run the copilot web app (override port: make serve PORT=8001)
 	python -m uvicorn brain.api.app:app --reload --host 0.0.0.0 --port $(PORT)
 
-.PHONY: up down logs install install-l1 install-l3 init verify synth ingest ingest-structured build-graph ask serve
+compliance: ## Level 4a: run the compliance checker -> reports/compliance_report.md
+	python scripts/check_compliance.py
+
+.PHONY: up down logs install install-l1 install-l3 init verify synth ingest ingest-structured build-graph ask serve compliance

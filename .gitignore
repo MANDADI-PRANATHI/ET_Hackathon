@@ -7,6 +7,8 @@ venv/
 
 # generated extraction output (large, machine-made)
 data/staging/
+# generated reports (compliance evidence packs, etc.)
+reports/
 
 # keep the corpus folder structure + docs, but not the actual data files
 data/corpus/**

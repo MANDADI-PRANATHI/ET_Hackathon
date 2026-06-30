@@ -1,0 +1,36 @@
+# Machine-checkable compliance rules (the "rule" half of the hybrid).
+# In the system, the AI can DERIVE rules like these from regulation text
+# (see compliance.derive_rules_from_text); this seed set guarantees a reliable,
+# demo-able check. The yes/no decision is always made by plain code, never the AI.
+#
+# check_type options the code understands:
+#   inspection_interval   -> needs interval_days; asset must have an inspection within that window
+#   no_open_nonconformance-> asset must have no NonConformance with status 'Open'
+#   record_exists         -> needs requires_label; asset must link to >=1 node of that type
+rules:
+  - id: REQ-INSP-VALVE
+    description: Pressure safety valves shall undergo statutory inspection at least every 6 months (180 days).
+    source: OISD-STD-106 / OSHA PSM 1910.119(j) Mechanical Integrity
+    applies_to_class: Valve
+    check_type: inspection_interval
+    interval_days: 180
+
+  - id: REQ-INSP-PUMP
+    description: Rotating equipment (pumps) shall be inspected at least annually (365 days).
+    source: OSHA PSM 1910.119(j)
+    applies_to_class: Pump
+    check_type: inspection_interval
+    interval_days: 365
+
+  - id: REQ-INSP-VESSEL
+    description: Pressure vessels shall be inspected at least every 2 years (730 days).
+    source: OISD-STD-106
+    applies_to_class: Vessel
+    check_type: inspection_interval
+    interval_days: 730
+
+  - id: REQ-NCR-VALVE
+    description: Safety-critical valves shall have no open (unresolved) non-conformances.
+    source: QMS / OISD
+    applies_to_class: Valve
+    check_type: no_open_nonconformance
