@@ -1,0 +1,29 @@
+{
+  "_note": "Hand-labelled ground truth for the deterministic entity extractor. Values are the DISTINCT normalized entities each fixture should yield. Person is AI-extracted and measured separately.",
+  "fixtures": [
+    {
+      "file": "incident_p101a.txt",
+      "entities": {
+        "equipment_tag": ["P-101A", "P-101B", "PSV-110A", "PSV-110B", "V-204"],
+        "regulatory_reference": ["OISD-STD-105"],
+        "date": ["2026-05-18", "12/05/2026"]
+      }
+    },
+    {
+      "file": "email_psv110b.txt",
+      "entities": {
+        "equipment_tag": ["P-101A", "PSV-110B"],
+        "regulatory_reference": ["OISD-STD-105"],
+        "date": ["2025-11-06", "2026-07-15"]
+      }
+    },
+    {
+      "file": "sop_v204.txt",
+      "entities": {
+        "equipment_tag": ["FT-150", "PSV-110A", "PSV-110B", "V-204"],
+        "regulatory_reference": ["OISD-STD-105"],
+        "date": ["2026-01-10"]
+      }
+    }
+  ]
+}

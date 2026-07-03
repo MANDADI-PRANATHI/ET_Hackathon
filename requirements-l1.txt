@@ -1,0 +1,12 @@
+# Level 1 — read documents & extract facts. Installed on top of Level 0.
+#   make install-l1
+-r requirements-l0.txt
+
+# Document intelligence: PDFs, Word, spreadsheets, scanned pages -> clean text/tables.
+docling>=2.0
+
+# Local, free "understands-meaning" models (embeddings + reranker).
+sentence-transformers>=3.0
+
+# Offline brain (only needed if LLM_PROVIDER=ollama).
+ollama>=0.3

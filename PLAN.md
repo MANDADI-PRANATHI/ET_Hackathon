@@ -1,257 +1,395 @@
-# Build Plan — Unified Asset & Operations Brain
+# Build Plan — Sutradhar: The Unified Asset & Operations Brain
 
 ### ET AI Hackathon 2026 · Problem Statement #8: AI for Industrial Knowledge Intelligence
+
+**Submission date: 22 July 2026 · Solo build, ~19 days runway**
+
+---
+
+## 0. Naming the thing
+
+We call the product **Sutradhar** — the "thread-holder," the figure in Indian classical
+theatre who stands at the edge of the stage, holds every character's thread, and narrates
+how they connect. That is exactly the job description in the problem statement: hold every
+document's thread — a drawing, a work order, a regulation, an incident report — and narrate
+how they connect to one asset, one decision, one answer. It is a name a judging panel from
+an Indian heavy-industry background will immediately understand, and it doubles as the
+one-line pitch: *"Sutradhar is the thread-holder for your plant's knowledge."*
 
 ---
 
 ## 1. What we're building (in one paragraph)
 
-A big plant keeps its knowledge scattered across 7–12 disconnected systems — engineering drawings in one place, maintenance work orders in another, safety procedures in a third, inspection records in a fourth, regulatory papers buried in email. Engineers waste about a third of their time hunting for information, decisions get made without full equipment history (causing ~18–22% of unplanned downtime), and when experienced people retire, decades of know-how disappear. We're building a single **"brain"** that reads **all** of those documents, understands how everything connects, and lets **anyone — in any role, on any device** — ask a plain-English question and get a trustworthy answer **with the exact source and a confidence level**. On top of that, it actively **does work**: checks the plant against safety/quality regulations, investigates *why* equipment failed, and pushes early warnings before problems repeat. It keeps itself **up to date automatically** as new documents arrive.
+A large plant's knowledge lives across 7–12 disconnected systems — P&IDs in one place,
+work orders in another, safety procedures in a third, inspection records in a fourth,
+regulatory paperwork buried in email. Engineers lose roughly a third of their working
+hours hunting for information that already exists somewhere. Maintenance decisions get
+made without full equipment history, contributing to 18–22% of unplanned downtime in
+Indian heavy industry. And a quarter of India's most experienced engineers retire within
+the decade, taking undocumented judgment calls — the "why," not just the "what" — with
+them. **Sutradhar is a single knowledge brain that reads every document type the plant
+produces, builds a living, asset-centred knowledge graph out of them, and lets anyone —
+technician, engineer, safety officer, auditor, on a phone or a desktop — ask a plain-English
+question and get a trustworthy answer with the exact source and a calculated confidence
+level.** On top of that, it runs three agents that *do work*, not just answer questions: it
+checks the plant against regulation, investigates why equipment failed, and pushes
+warnings before a known failure pattern repeats — and it keeps itself current automatically
+as new documents land, so the brain never goes stale the way a wiki does.
 
 ---
 
-## 2. How the whole thing works (the simple version)
+## 2. How the whole thing works
 
-A four-step assembly line:
+A four-stage pipeline, each stage independently demoable:
 
-1. **Read everything.** Feed in all the messy documents — drawings/P&IDs, work orders, safety procedures, inspection reports, operating instructions, project files, spreadsheets, scanned forms, and email archives. The system reads each one and pulls out the important facts.
-2. **Connect the dots.** Those facts go into a "web of connections" (a knowledge graph) built **around the asset** — every pump, valve, and vessel is a *hub*, with its documents, work orders, inspections, incidents, sensor readings, manuals, and the people involved all linked to it. So nothing sits alone: *Pump P-101* → *maintained by* → *Work Order 4471* → *references* → *Manual page 12* → *governed by* → *Safety Rule OISD-105*. The web updates as new documents arrive (a real step-by-step pipeline — see Level 2, not magic).
-3. **Answer questions.** Anyone asks a question and gets a clear answer, the **exact sources**, and a **confidence level** — tailored to their role (a technician, an engineer, a safety officer, an auditor each get what's relevant to them).
-4. **Take action.** Assistants use the same brain to *do things*: check compliance and raise quality issues, investigate failures (using both documents **and** live operating conditions), and push warnings before known problems recur.
-5. 
+1. **Read everything.** Every document type named in the brief — P&IDs/drawings, work
+   orders, safety procedures, inspection reports, operating instructions, project files,
+   spreadsheets, scanned forms, email archives — goes through a router that sends it to the
+   right extractor and comes out the other side as clean, source-stamped facts.
+2. **Connect the dots.** Facts become nodes and edges in a knowledge graph built **around
+   the asset**: every pump, valve, and vessel is a hub with its documents, work orders,
+   inspections, incidents, live readings, manuals, and people all linked to it —
+   *Pump P-101 → maintained by → Work Order 4471 → references → Manual page 12 →
+   governed by → OISD-105*. The graph updates itself through a real ingest-merge-refresh
+   pipeline every time a new document arrives — not a one-time load.
+3. **Answer questions.** Anyone asks in plain English and gets a clear answer, the exact
+   sources (clickable, down to the page), and a calculated confidence score — framed for
+   their role.
+4. **Take action.** Three always-on agents use the same brain to check compliance and
+   flag quality issues, investigate failures using documents *and* live operating
+   conditions, and proactively push warnings before a known bad pattern recurs.
 
 ```
-Messy documents ─▶ Read & extract facts ─▶ Web of connections (auto-updating)
-                                                     │
-                ┌────────────────────────────────────┼────────────────────────────────────┐
-                ▼                                      ▼                                     ▼
-        Ask-anything Copilot              Compliance + Quality (QMS)            Maintenance/RCA  +  Lessons-Learned
-        (sources, confidence,             (gaps, evidence packs,               (live conditions, predictive,
-         role-aware, mobile)               non-conformances, corrective         optimised schedules)  + proactive
-                                           actions)                              warnings from past incidents
+Messy documents ─▶ Read & extract facts ─▶ Auto-updating knowledge graph
+  (Level 1)              (source + confidence           (Level 2)
+                           on every fact)                    │
+                ┌──────────────────────────┬──────────────────┴──────────────┐
+                ▼                          ▼                                  ▼
+      Ask-Anything Copilot      Compliance + QMS Agent            Maintenance/RCA Agent
+        (Level 3 — GraphRAG,     (Level 4a — hybrid rule           + Lessons-Learned Agent
+         citations, confidence,   engine, evidence packs,          (Level 4b/4c — live
+         role-aware, mobile,      non-conformances, CAPA)           conditions, predictive
+         voice input)                                               maintenance, proactive
+                                                                      warning feed)
+                                        │
+                                        ▼
+                        Live Scorecard Dashboard (Level 5)
+              — every judged metric computed and shown, in-product
 ```
 
 ---
 
-## 3. How we cover **every part** of the brief
+## 3. How we cover every part of the brief — completely
 
-This is the checklist that proves nothing is missing.
+**The five buildable components — all covered, and each pushed a step further than the
+literal ask:**
 
-**The five things we may build — all covered:**
-
-| Component in the brief                            | Where in our plan                                                                                                                                                                              |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Universal Document Ingestion & Knowledge Graph | Levels 1 & 2 — reads all formats, extracts entities (equipment tags, process parameters, regulatory references, personnel, dates), auto-updates                                               |
-| 2. Expert Knowledge Copilot                       | Level 3 — answers with citations + confidence + links, mobile, role-aware                                                                                                                     |
-| 3. Maintenance Intelligence & RCA                 | Level 4b — fuses work orders + failure records + manuals + inspections**+ live operating conditions** → predictive recommendations, root-cause analysis, **optimised schedules** |
-| 4. Quality & Regulatory Compliance                | Level 4a — maps Factory Act / OISD / PESO / environmental / quality standards → gaps, evidence packages, flags quality deviations (this is also our**QMS integration**)                |
-| 5. Lessons-Learned & Failure Intelligence         | Level 4c — analyses incidents, near-misses, audit findings, non-conformances**+ external industry databases** → patterns → **proactively pushes warnings**                      |
+| Component in the brief | Where in our plan | How we go beyond the minimum |
+|---|---|---|
+| 1. Universal Document Ingestion & Knowledge Graph | Levels 1 & 2 | Auto-updating pipeline demoed live (drop a file mid-demo, watch the graph and answers change); deterministic + AI hybrid extraction for auditable accuracy |
+| 2. Expert Knowledge Copilot | Level 3 | GraphRAG (graph traversal + meaning search combined), not simple RAG; mobile-first, voice input for field technicians with dirty hands; deliberately tests cross-functional discovery |
+| 3. Maintenance Intelligence & RCA | Level 4b | Fuses static docs with a live "readings adapter" (OPC-UA/MQTT-shaped) so RCA reasons over *current* plant state, not just history |
+| 4. Quality & Regulatory Compliance | Level 4a | Hybrid rule engine: AI reads the regulation, code makes the yes/no call — auditors can trust the verdict, not just the explanation; auto-generates a PDF evidence package |
+| 5. Lessons-Learned & Failure Intelligence | Level 4c | Internal pattern mining + external CSB/OISD incident correlation; **pushes** warnings via an alert feed instead of waiting to be asked — directly answers the "before similar conditions recur" language in the brief |
 
 **The six suggested technologies — all covered:**
 
-| Suggested technology                                    | Where                                                                                                 |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| RAG over heterogeneous documents                        | Level 3 (the copilot)                                                                                 |
-| Knowledge Graphs & Industrial Ontology                  | Levels 0 & 2 (the web + a standards-based vocabulary)                                                 |
-| Computer Vision (P&ID parsing, drawing digitisation)    | Level 1 (reading drawings — its own explicit step)                                                   |
-| OCR & Document Intelligence (structured + unstructured) | Level 1 (Docling + reading scanned pages)                                                             |
-| **QMS Integration**                               | Level 4a (quality records in, non-conformances + corrective actions out, plug-in slot for a real QMS) |
-| Agentic AI for maintenance & compliance                 | Level 4 (the assistants)                                                                              |
+| Suggested technology | Where |
+|---|---|
+| RAG over heterogeneous documents | Level 3 |
+| Knowledge Graphs & Industrial Ontology Engineering | Levels 0 & 2 — a standards-based (ISA-95 / ISO 14224 / IEC 81346), swappable vocabulary |
+| Computer Vision (P&ID parsing, drawing digitisation) | Level 1 — vision-model drawing reader with a human-confirm step |
+| OCR & Document Intelligence | Level 1 — layout-aware document reader for scans, tables, forms |
+| QMS Integration | Level 4a — non-conformances, CAPA workflows, plug-in slot for a real QMS |
+| Agentic AI for maintenance and compliance | Level 4 — three purpose-built agents with visible reasoning traces |
 
-**The four required deliverables — all covered (Level 5):** Working Prototype · Architecture Diagram · Presentation Deck · Demo Video.
+**The four required deliverables — all covered (Level 5):** Working Prototype ·
+Architecture Diagram · Presentation Deck · Demo Video.
 
-**The evaluation focus — each has an owner and a measurement (Level 5 scorecard):**
+**The evaluation focus — each metric has an owner, a measurement, and a live dashboard
+tile so judges see the number, not just a claim:**
 
-| Judged on                                      | Where we earn it / measure it                                                                                                   |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Entity extraction accuracy                     | Level 1 (measured against hand-labelled docs)                                                                                   |
-| Query answer quality on expert questions       | Level 3 (measured on an expert Q&A set)                                                                                         |
-| Knowledge-graph linkage completeness           | Level 2 (measured)                                                                                                              |
-| Time-to-answer vs traditional search           | Level 3 (measured against keyword search)                                                                                       |
-| Compliance-gap detection accuracy              | Level 4a (measured)                                                                                                             |
-| **Cross-functional knowledge discovery** | Level 3 — measured: how often the best answer comes from a*different* department's documents than where the question started |
-| Validated on real industrial samples           | Real public documents used throughout                                                                                           |
-
----
-
-## 4. Generic engine, oil & gas as the showcase
-
-We are **not** locked to oil & gas. The **engine is completely general** — it works for any asset-heavy plant (manufacturing, power, oil & gas). The only domain-specific piece is the **"vocabulary" file**, which is a **swappable profile** you load. We use an **oil & gas profile for the demo** because that's where the best *real public documents* exist and where the safety/compliance story is strongest — but we can load a manufacturing or power profile by switching one file, and we'll show that briefly to prove it's general. This also helps the **Scalability** score: it's a platform, not a one-off.
+| Judged on | Where we earn it | How it's shown |
+|---|---|---|
+| Entity extraction accuracy across document types | Level 1, hand-labelled benchmark set | Scorecard tile, per document type |
+| Query answer quality on expert benchmark questions | Level 3, curated Q&A benchmark scored with an automated answer-quality rubric | Scorecard tile with pass/fail breakdown |
+| Knowledge-graph linkage completeness | Level 2 | Scorecard tile + live graph visualisation |
+| Time-to-answer vs. traditional search | Level 3, measured against a real keyword-search baseline built alongside it | Side-by-side timer in the demo |
+| Compliance-gap detection accuracy | Level 4a, measured against known planted gaps + labelled regulation clauses | Scorecard tile |
+| Cross-functional knowledge discovery | Level 3, measured as % of benchmark answers whose best evidence comes from a different department than the question's origin | Scorecard tile — our signature differentiator |
+| Validated on real industrial samples | Real public documents (CSB investigation reports, OISD standards, OSHA PSM, OEM manuals) used throughout | Named and cited in the deck |
 
 ---
 
-## 5. What it costs
+## 4. Mapping straight to the judging weights
 
-**Nothing.** Everything runs free:
+We designed features against the scorecard, not just the feature list, so nothing we build
+is judged-criteria-neutral:
 
-- All storage and software runs on your own machine (no cloud bills).
-- The "thinking" AI uses **Google Gemini's free tier** *or* a model running **fully offline on your laptop** — either is $0. One setting switches between them.
-- The "understanding meaning" part (for search) runs locally and free.
-
-Bonus pitch: because it can run **fully offline on plant hardware**, it suits real industrial customers who legally **can't send drawings and incident data to the cloud** — a genuine business advantage, not just a budget choice.
-
----
-
-## 6. The tools we use, in plain English
-
-We rely on well-known **free frameworks** — we are *not* hand-writing everything.
-
-| Tool                                               | What it does, plainly                                                                                                                                                                            |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Docling**                                  | Reads PDFs, Word, spreadsheets, and scanned pages and turns messy layouts into clean text and tables.                                                                                            |
-| **Gemini (free) or Ollama**                  | The "brain." Gemini is a free online AI; Ollama runs an AI on your own computer. We swap with one setting.                                                                                       |
-| **Instructor**                               | Forces the AI to return facts in a tidy, form-like format so the rest of the system can trust and use them.                                                                                      |
-| **Neo4j**                                    | The "web of connections." Stores facts as dots and links, lets us ask "show everything connected to P-101," and draws the web as a picture for the demo.                                         |
-| **LlamaIndex**                               | The backbone that ties it together: reading documents, building the web, searching, and answering. Saves us tons of plumbing.                                                                    |
-| **Local embeddings + reranker (BGE/Nomic)**  | The "understands meaning" part, so "the pump is leaking" matches "seal failure on P-101." Free, on your machine.                                                                                 |
-| **LangGraph**                                | Runs the step-by-step assistants (compliance, failure investigation) so they can reason in stages and show their work.                                                                           |
-| **RAGAS**                                    | A free testing tool that scores answer quality — gives us real numbers for the judges.                                                                                                          |
-| **FastAPI**                                  | The behind-the-scenes server.                                                                                                                                                                    |
-| **Next.js**                                  | The app screen — a role-aware chat that works on phones (for field staff) and desktops.                                                                                                         |
-| **A "readings adapter" + time-series table** | Holds recent equipment readings (temperature, vibration, pressure). A replayed data file feeds it for the demo; real plant feeds (the standard protocols OPC-UA / MQTT) plug into the same slot. |
-| **A plain-code rule checker**                | Makes the exact compliance decisions (is the inspection within the time limit? is the state OK?) so the yes/no answer is never left to the AI's guess.                                           |
-
-### How the data is stored — two layers working together
-
-We deliberately keep **two stores**, each doing what it's best at:
-
-- **The meaning store (a "vector index"):** holds the document passages and their "meaning fingerprints," for fast search by meaning. For the hackathon this lives inside Neo4j's built-in meaning-search to keep it simple. *If* we ever needed to scale to millions of passages, we'd move this part to a dedicated meaning store (Qdrant) — a one-setting change.
-- **The connections store (Neo4j):** holds the facts and how they link, built **around the asset** so every pump/valve/vessel is a hub with its history, documents, and readings hanging off it.
-
-The copilot uses **both together**: meaning-search finds the right passages; the connections store reasons across departments. (So we're *not* dumping everything into one tool and hoping — each layer does its own job.)
+| Criterion | Weight | What earns it |
+|---|---|---|
+| **Innovation** | 25% | GraphRAG combining graph traversal + meaning search (not "PDF search with a chatbot"); hybrid deterministic/AI extraction with per-fact confidence provenance; hybrid AI-parses/code-decides compliance engine; proactive warning agent that pushes instead of waiting; in-product live scorecard that self-grades against the brief's own evaluation criteria in real time |
+| **Business Impact** | 25% | Every number in the pitch traces to the brief's own cited stats (35% time lost, 18–22% downtime, 25% retiring workforce); compliance evidence packages map to real Indian statutes (Factory Act, OISD, PESO); fully offline-capable deployment story matters concretely to regulated Indian plants that legally cannot send drawings/incident data to a foreign cloud |
+| **Technical Excellence** | 20% | Standards-grounded ontology (ISA-95/ISO 14224/IEC 81346); asset-centric graph with real entity-resolution (alias lists + similarity + human-confirm, deliberately *not* over-merging near-duplicate equipment); every fact traceable to its exact source sentence; automated eval harness (extraction accuracy, answer quality, linkage completeness) built incrementally, not bolted on at the end |
+| **Scalability** | 15% | Swappable industry ontology proven live in the demo (flip from oil & gas to manufacturing on one config change); adapter pattern for live sensor feeds (OPC-UA/MQTT-shaped) so production deployment is a plug, not a rewrite; ingestion pipeline designed for incremental updates at any volume, not a one-shot batch job |
+| **User Experience** | 15% | Mobile-first, works one-handed in the field; voice input for technicians who can't type with gloves on; role-aware answers (technician vs. engineer vs. safety officer vs. auditor see different framing of the same fact); every claim is a clickable citation, so trust is inspectable, not asserted |
 
 ---
 
-## 7. How the fact-finding actually works (it's not "all AI")
+## 5. Generic engine, oil & gas as the showcase
 
-We use the cheapest, most reliable method for each kind of information:
-
-| Kind of information                                     | How we get the facts                                                             | AI?                             |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------- |
-| Spreadsheets, work-order tables, quality records        | Read the columns directly with plain code — the facts are already in the fields | **No**                    |
-| Predictable codes (P-101, dates, OISD-105)              | Pattern-matching rules — exact and free                                         | **No**                    |
-| Layout & tables in PDFs                                 | A document reader organises them (it doesn't invent)                             | **Not the guessing kind** |
-| Facts buried in sentences (reports, procedures, emails) | The AI reads the prose and extracts facts + links                                | **Yes**                   |
-| Realising "P-101" = "Pump 101"                          | Mostly maths (similarity); AI only for tricky cases                              | **Mostly no**             |
-
-And where AI *is* used, it's fenced in: it must use our fixed vocabulary, its output must fit a strict form, **every fact is tied to the exact source sentence** (so it's checkable and powers the citations), low-confidence facts are flagged, and facts confirmed across multiple documents score higher. This protects accuracy, keeps everything trustworthy, and saves cost.
+The engine is **industry-agnostic** — it works for any asset-heavy plant (manufacturing,
+power, oil & gas). The only industry-specific piece is the ontology YAML — a swappable
+vocabulary profile. We build the oil & gas profile first because that is where the richest
+*real, public* documents exist (CSB investigation reports, OISD standards) and where the
+compliance story is strongest, but the demo includes a **live ontology swap** — flipping to
+a manufacturing profile on stage — to prove Scalability isn't just a slide claim.
 
 ---
 
-## 8. The build, layer by layer
+## 6. What it costs
 
-Six levels. Each works on its own and adds to the last, so we always have something to show.
+**Nothing.** All storage and compute run on local infrastructure (Docker) or a free-tier
+cloud model. The "thinking" layer sits behind one setting (`LLM_PROVIDER=gemini|ollama`),
+so the whole system can run **fully offline** on a laptop with zero internet dependency —
+a genuine requirement for regulated Indian plants (OISD/PESO sites) that are not legally
+permitted to send drawings or incident data to a foreign cloud. That's not a cost-saving
+trick, it's a real deployment advantage worth stating plainly in the business-impact
+narrative.
 
-### Level 0 — Foundation
+---
 
-**What:** set up the workspace and the "vocabulary."
-**How (plain):**
+## 7. The tools, trimmed to what actually earns its place
 
-- Install the free databases/software with one command.
-- Gather a realistic oil & gas document set covering **every type the brief names**: engineering drawings / P&IDs, maintenance work orders, safety procedures, inspection reports, operating instructions, project files, spreadsheets, scanned forms, and email archives — using real public sources (incident reports, OISD/OSHA rules, equipment manuals) plus realistic made-up maintenance records, quality records, and permits.
-- Define the **vocabulary** (equipment, work orders, inspections, procedures, regulations, incidents, failure types, quality non-conformances, people, dates, and their links), based on real industry standards — and make it a **swappable profile** (oil & gas loaded first).
-  **Done when:** software runs and the document set is ready.
+We deliberately keep the stack small — every additional framework is something that can
+break during a live demo, so each one has to justify itself:
 
-### Level 1 — Read everything & pull out facts
+| Tool | What it does | Why it's in (not just "why not") |
+|---|---|---|
+| **Docling** | Reads PDFs, Word, spreadsheets, scanned pages into clean text/tables | Saves weeks of layout-parsing code |
+| **Vision-capable LLM (Gemini vision / local vision model)** | Reads P&IDs and scanned drawings directly as images, extracting tags/lines/instrument numbers | Avoids building a bespoke CV pipeline (symbol/line detection) that would eat most of the runway for marginal gain — a hackathon-realistic way to satisfy the "computer vision" ask |
+| **Neo4j** | Stores facts as nodes/edges, asset-centric; native vector index doubles as the meaning-search store | One database for both graph and vector search keeps the stack small |
+| **Local embeddings + reranker (BGE)** | Meaning-matching ("pump is leaking" ↔ "seal failure on P-101") | Free, on-device, no API cost or latency |
+| **LlamaIndex** (retrieval layer only) | Chunking, retrieval orchestration | Used narrowly — the graph-traversal reasoning stays as our own explainable code, not hidden inside a framework, so we can show *how* an answer was built in the demo |
+| **A small agent framework (used only in Level 4)** | Runs the compliance/RCA/lessons-learned agents as an explicit, inspectable multi-step plan with a visible reasoning trace | Kept out of Levels 1–3 entirely — plain functions are simpler and less to debug where multi-step planning isn't actually needed |
+| **RAGAS-style automated scoring** | Scores answer quality against the benchmark set with a repeatable rubric | Gives real numbers for the scorecard instead of subjective judgment |
+| **FastAPI** | Backend server | Standard, fast, typed |
+| **Next.js** | Mobile-first, role-aware chat UI + live scorecard dashboard | One codebase for phone and desktop |
+| **A time-series table + readings adapter** | Holds recent equipment readings (temperature, vibration, pressure); a replayed data file feeds it for the demo, real OPC-UA/MQTT plugs into the same slot | Makes "real-time operating conditions" concrete without needing a real plant feed |
+| **A plain-code compliance rule checker** | Executes the parsed rule against actual dates/records/readings and returns a hard met/gap/unknown | The pass/fail decision is never left to a model's guess — this is the credibility anchor for the compliance agent |
 
-**What:** turn messy documents into clean facts.
-**How (plain):**
+Dropped from the original plan on purpose: a dedicated structured-output wrapper library
+(native structured/JSON output from the chosen model is sufficient) and a full agent
+orchestration framework for anything before Level 4 (unnecessary complexity where a
+straight pipeline does the job). Fewer moving parts means fewer things that can fail live.
 
-- Each document goes to the right reader: normal files to Docling; **drawings and scanned pages to the Computer-Vision step**, where the AI *looks at the image* and reads off the equipment tags, line numbers, and instrument tags (this is the "drawing digitisation" the brief asks for), with a quick **human-confirm screen** so the readings are trusted.
-- The AI then extracts facts in a tidy form; structured files (spreadsheets, tables, quality records) are read directly by code.
-- **Every extracted fact is stamped with two things:** the exact source passage it came from, and how confident the extraction was. These travel with the fact and feed the final confidence the user sees later.
-- Each document is split into searchable passages tagged by meaning.
-  **Done when:** a mixed folder produces clean facts + searchable passages (each carrying its source + confidence) — and **extraction accuracy is measured** (a judged metric).
+### Two stores, each doing one job
+
+- **Meaning store (vector index inside Neo4j):** fast retrieval of the right passage by
+  semantic similarity.
+- **Connections store (Neo4j graph):** facts and how they link, asset-centric, reasoning
+  across departments.
+
+The copilot uses both together — meaning-search finds candidate passages, the graph
+supplies the relationships that make an answer *explainable*, not just plausible.
+
+---
+
+## 8. How the fact-finding actually works (deliberately not "all AI")
+
+| Kind of information | How we get the facts | AI involved? |
+|---|---|---|
+| Spreadsheets, work-order tables, quality records | Read columns directly with plain code | No |
+| Predictable codes (P-101, dates, OISD-105) | Regex pattern rules | No |
+| Layout & tables in PDFs | Layout-aware document reader organises, doesn't invent | Not the guessing kind |
+| Facts buried in prose (reports, procedures, emails) | Model reads the prose, extracts facts + links, output constrained to a fixed schema | Yes, fenced in |
+| Drawings and scans | Vision model reads the image, tags stamped as low-confidence until human-confirmed | Yes, with a checkpoint |
+| "P-101" = "Pump 101"? | Mostly similarity math; model judges only the genuinely unclear cases | Mostly no |
+
+Wherever a model is used: it must use the fixed ontology vocabulary, its output must
+validate against a strict schema, **every fact is tied to its exact source sentence**
+(this is what powers the citations and the confidence score), low-confidence extractions
+are flagged rather than silently trusted, and facts confirmed across multiple documents
+score higher. This is the credibility foundation the whole product stands on.
+
+---
+
+## 9. The build, layer by layer
+
+Six levels, each independently demoable, each adding to the last.
+
+### Level 0 — Foundation *(done)*
+
+Local infrastructure (Neo4j, Postgres, MinIO), the standards-grounded oil & gas ontology
+profile, LLM provider switch, schema init, synthetic plant records (with a deliberately
+overdue PSV-110B inspection planted for the Level 4a demo), health-check script.
+
+### Level 1 — Read everything & extract facts
+
+- Router sends each document to the right extractor: normal files → document reader;
+  drawings and scans → vision-model reader with a human-confirm checkpoint.
+- Structured files (spreadsheets, tables, quality records) read directly by code — no
+  model in the loop where it isn't needed.
+- **Every extracted fact is stamped with its exact source passage and an extraction
+  confidence** — this travels with the fact all the way to the final answer.
+- Documents split into meaning-tagged, searchable passages.
+- **Build the entity-extraction benchmark set here** (hand-label a sample from each
+  document type) so accuracy is measured from day one, not estimated later.
+- **Build the keyword-search baseline here too** — a simple full-text index — so the
+  "time-to-answer vs. traditional search" comparison has a real opponent, not a strawman.
+
+**Done when:** a mixed folder produces clean, source-stamped facts and searchable
+passages, and extraction accuracy is measured against the benchmark.
 
 ### Level 2 — Build the web of connections
 
-**What:** turn loose facts into the linked, asset-centric brain.
-**How (plain):**
+- Every fact becomes a node, every relationship an edge, the **asset is the hub**.
+- Entity resolution done properly: normalise tags by pattern, maintain an alias list, use
+  similarity to propose matches, let the model judge only the genuinely unclear cases with
+  a human-confirm step. Deliberately avoid over-merging — "P-101A" and "P-101B" are
+  usually distinct backup pumps, not one asset, and every alias records where it came from.
+- **Real update pipeline:** new document → extract → compare against existing graph →
+  merge/resolve duplicates → update the graph → refresh affected embeddings → invalidate
+  stale cached answers. Demoed live by dropping a new file mid-presentation and watching
+  the graph and a follow-up answer change.
 
-- Every fact becomes a dot; every relationship a link — and the **asset is the hub** everything else attaches to.
-- **Matching duplicates properly (this is harder than it sounds, and we treat it seriously).** The same item shows up as "P-101", "Pump 101", or a tag on a drawing. We handle it in steps: normalise tags by their pattern, keep an **alias list**, use meaning-similarity to spot likely matches, and let the AI judge **only the genuinely unclear cases**, with a quick **human-confirm**. Crucially we *don't over-merge*: "P-101A" and "P-101B" are usually two different backup pumps, not one — so we keep them separate and record where every name came from.
-- **Staying up to date is a real pipeline, not magic.** When a new document arrives: extract its facts → compare with what's already there → merge/resolve duplicates → update the web → refresh the affected "meaning fingerprints" → clear any now-stale cached answers. For the hackathon this runs as a repeatable "ingest new documents" step; a live, always-on version plugs into the same steps.
-  **Done when:** we can view the web as a picture, **linkage completeness and duplicate-merging accuracy are measured** (judged metrics), and re-running ingestion on a new document correctly updates the web. The visual is a key demo moment.
+**Done when:** the graph is visualisable, linkage completeness and merge accuracy are
+measured, and a live re-ingest correctly updates the graph and the copilot's answers.
 
-### Level 3 — The Ask-Anything Copilot (centerpiece)
+### Level 3 — The Ask-Anything Copilot *(centerpiece)*
 
-**What:** the chat where anyone gets a trustworthy answer. **The main demo.**
-**How (plain):**
+- Real GraphRAG, not "search then ask": spot the topic → jump to its hub in the graph and
+  pull its neighbours → also pull meaning-matched passages → combine both → write the
+  answer. The graph is what makes cross-functional answers possible.
+- Every claim is a clickable citation to the exact document and page.
+- **Confidence is computed, not asserted** — built from extraction confidence, linkage
+  strength, retrieval match quality, and multi-document agreement. Weak evidence is stated
+  as weak, not smoothed over.
+- Role-aware framing: technician, engineer, safety officer, and auditor get the same fact
+  framed for their job; sensitive personal data is access-controlled by role.
+- **Mobile-first UI with voice input** — a field technician with gloves and dirty hands can
+  ask a question by speaking into a phone and get a streamed, cited answer back.
+- The benchmark deliberately includes cross-functional questions (best answer sourced from
+  a different department than where the question started) to measure that specific metric.
 
-- It answers in clear steps (this is the real "GraphRAG" method, not just "search then AI"): **① spot what your question is about** (e.g., Pump P-101) → **② jump to it in the web and pull in its neighbours** (its work orders, the governing rule, the manual) → **③ also pull passages that match by meaning** → **④ combine both sets** → **⑤ write the answer.** Using the graph *and* meaning-search together is what lets it reason across departments.
-- It writes a clear answer where **every claim shows the exact document/page (clickable)**.
-- **The confidence level is built up, not guessed.** It's combined from: how sure we were when we *extracted* each fact (from Level 1), how solidly that fact is *linked* in the web, how well the *sources matched* the question, and whether **multiple documents agree**. When those are weak, the answer says so plainly instead of sounding falsely certain.
-- It is **role-aware**: a technician, engineer, safety officer, and auditor each get answers framed for them, and sensitive personal data is only shown to those allowed to see it.
-- It works on a phone, with answers streaming live.
-- We deliberately test **cross-functional discovery**: questions whose best answer lives in *another department's* documents (e.g., a maintenance question answered by a safety procedure).
-  **Done when:** it answers expert questions with correct sources, is **much faster than keyword search**, and we **measure cross-functional discovery** (all judged metrics). *This is a complete product on its own.*
+**Done when:** it answers benchmark questions correctly with real citations, beats the
+keyword-search baseline on time-to-answer, and the cross-functional discovery rate is
+measured and shown on the scorecard. *This alone is a complete, demoable product.*
 
-### Level 4 — The smart assistants (what sets us apart)
+### Level 4 — The agents that set us apart
 
-**4a. Quality & Compliance assistant + QMS integration** (highest value):
+**4a. Compliance & Quality (QMS) agent — built first, highest confidence, highest value**
 
-- It works in a **hybrid** way, because real compliance is not a "vibe check" — "valve inspected every 6 months?" is an exact date check, not an opinion. So: the **AI first turns each regulation clause into a precise, checkable rule** (e.g., *"valves of this class → inspection every 6 months"*). Then a **plain-code checker** runs that rule against the actual records in the web and the dates/readings (last inspection date vs the 6-month limit, equipment state, any exceptions) and returns a hard **met / gap / unknown**. The AI is used to *read* the regulation and to *write the explanation* — but the **yes/no decision is made by exact code**, so it's reliable.
-- It then produces an **audit-ready evidence package**, and — as the **QMS part** — it **flags quality deviations**, **raises non-conformance records**, and **drafts corrective-action workflows**, each tied to evidence. A simple **plug-in slot** lets it connect to a real QMS later via standard files/APIs.
-  **Done when:** it produces a real evidence package on real regulations and **gap-detection accuracy is measured** (a judged metric).
+- Hybrid by design: a model turns each regulation clause into a precise, checkable rule
+  ("valves of this class → inspection every 6 months"); a **plain-code checker** then runs
+  that rule against the actual graph data (last inspection date vs. limit, equipment
+  state, exceptions) and returns a hard **met / gap / unknown** — the yes/no decision is
+  never left to a model's guess.
+- Produces an **auto-generated, audit-ready PDF evidence package**, raises
+  non-conformance records, and drafts CAPA (corrective-action) workflows, each tied to its
+  evidence. A plug-in slot allows connecting to a real QMS later via standard files/APIs.
 
-**4b. Maintenance & Failure-Investigation (RCA) assistant:**
+**Done when:** it produces a real evidence package against real regulation text and
+gap-detection accuracy is measured against known planted gaps.
 
-- For a piece of equipment, it pulls together work-order history, failure records, the manufacturer's manual, inspection findings, **and recent operating readings** (temperature, vibration, pressure). **How the readings get in (made concrete):** for the demo they come from a **replayed data file** kept in a simple **time-series table**, reached through a clean **"readings adapter."** In a real plant a live feed over the standard protocols **OPC-UA or MQTT** plugs into that *same adapter* — so it's designed-in, not bolted-on.
-- It produces a **root-cause analysis** with evidence, **predictive maintenance recommendations**, and an **optimised maintenance schedule**.
-  **Done when:** RCA matches known real causes and a sample optimised schedule is generated.
+**4b. Maintenance & RCA agent**
 
-**4c. Lessons-Learned & proactive warnings:**
+- Pulls work-order history, failure records, OEM manuals, and inspection findings from the
+  graph, plus **live operating readings** (temperature, vibration, pressure) through a
+  readings adapter — fed by a replayed data file for the demo, with the same adapter
+  ready to accept a live OPC-UA/MQTT feed in production.
+- Produces a root-cause analysis with cited evidence, predictive maintenance
+  recommendations, and an optimised maintenance schedule.
 
-- It mines **the plant's own history first** — past incidents, near-misses, audit findings, and quality non-conformances — to find recurring patterns invisible to any single review. This internal history is the reliable core.
-- It folds in **external incident reports (e.g., public investigation reports) only where they map cleanly onto our vocabulary** — because external data is often messy and inconsistent, we use it as a bonus, not a dependency.
-- It **proactively pushes warnings** to the relevant team (an alert feed) **before** similar conditions recur, instead of waiting to be asked.
-  **Done when:** it surfaces a real recurring pattern and pushes a matching warning.
+**Done when:** RCA output matches known causes in the benchmark scenarios and a sample
+optimised schedule is generated.
 
-### Level 5 — Prove it, polish it, present it
+**4c. Lessons-Learned & proactive warning agent**
 
-**What:** turn the working system into a winning submission.
-**How (plain):**
+- Mines the plant's own incident, near-miss, audit, and non-conformance history for
+  recurring patterns invisible to any single review.
+- Folds in external public incident reports (e.g. CSB investigations) only where they map
+  cleanly onto the ontology, so external noise never pollutes internal accuracy.
+- **Proactively pushes warnings** to the relevant team through an alert feed — before a
+  known bad pattern recurs, not on request. This directly answers the "before similar
+  conditions recur" language in the brief.
 
-- Build a **scorecard** measuring every judged metric (extraction accuracy, answer quality, linkage completeness, speed vs keyword search, compliance-gap accuracy, **cross-functional discovery**). Real numbers go into the deck.
-- Add **role-based access** controls (who sees sensitive personal data) and make ingestion handle many documents smoothly (the **Scalability** story).
-- Produce the **architecture diagram, slide deck, and demo video** (the four required deliverables).
-  **Done when:** one command produces the scorecard, the demo is recorded, and the deck is ready.
+**Done when:** a real recurring pattern is surfaced from the corpus and a matching warning
+is pushed automatically.
 
-> **Must-have line:** Levels 0–3 are a complete, demo-ready product. Levels 4–5 are the power that wins.
+### Level 5 — Prove it, scale it, present it
+
+- **Live in-product scorecard**: every judged metric (extraction accuracy, answer
+  quality, linkage completeness, time-to-answer, compliance-gap accuracy,
+  cross-functional discovery) computed and displayed inside the product itself — judges
+  see the number generated live, not just quoted in a deck.
+- **Scalability demo**: swap the ontology profile live (oil & gas → manufacturing) and
+  re-run a query to prove the engine is generic.
+- Role-based access control finished as polish once the scored features are solid.
+- Architecture diagram, presentation deck, and demo video produced from real numbers and
+  a real running system.
+
+**Done when:** one command regenerates the scorecard, the demo video is recorded end to
+end without a script cut, and the deck is ready.
+
+> **Must-have line:** Levels 0–3 are a complete, demo-ready product on their own.
+> Level 4a is the next priority after that (fastest to make bulletproof — the compliance
+> gap is planted in the data). 4b and 4c follow if the runway allows, which at 19 days it
+> comfortably should.
 
 ---
 
-## 9. Two-week timeline
+## 10. Nineteen-day schedule (3 Jul → 22 Jul 2026)
 
-| Days   | Focus                                                                                                 |
-| ------ | ----------------------------------------------------------------------------------------------------- |
-| 1–2   | Level 0–1: setup, gather all document types, get reading + Computer-Vision + fact-extraction working |
-| 3–4   | Level 2: build the auto-updating web + merge-duplicates                                               |
-| 5–6   | Level 3: copilot — sources, confidence, role-aware, mobile, cross-functional discovery               |
-| 7      | Level 4a: compliance + QMS (gaps, evidence packs, non-conformances, corrective actions)               |
-| 8      | Level 4b: maintenance/RCA with live-conditions feed + optimised schedules                             |
-| 9      | Level 4c: lessons-learned + proactive warnings                                                        |
-| 10–12 | Level 5: scorecard, access control, architecture diagram, deck, demo video                            |
-| 13–14 | Buffer for fixes and rehearsal                                                                        |
-
----
-
-## 10. How we prove it works
-
-The judges score on specific measurements, so we measure ourselves on the same ones from day one: extraction accuracy, answer quality, linkage completeness, speed vs old search, compliance-gap accuracy, and cross-functional discovery — all shown as real numbers, validated on real documents.
+| Days | Dates | Focus |
+|---|---|---|
+| 1 | Jul 3 | De-risk spike: run the vision model against a real P&ID and confirm tag extraction quality; scaffold the eval harness |
+| 2–3 | Jul 4–5 | Level 1: document router, structured readers, vision-drawing reader + human-confirm, source+confidence stamping, entity-extraction benchmark set, keyword-search baseline |
+| 4–6 | Jul 6–8 | Level 2: asset-centric graph build, entity resolution, live re-ingest pipeline, graph visualisation |
+| 7–9 | Jul 9–11 | Level 3: GraphRAG copilot, citations, computed confidence, role-aware framing, mobile UI + voice input, cross-functional benchmark questions |
+| 10 | Jul 12 | Level 4a: compliance rule engine, evidence-package generator, non-conformance/CAPA workflow |
+| 11 | Jul 13 | Level 4b: RCA agent, readings adapter, replayed live-conditions feed |
+| 12 | Jul 14 | Level 4c: lessons-learned mining, proactive warning feed |
+| 13–15 | Jul 15–17 | Level 5: live scorecard dashboard, ontology-swap scalability demo, RBAC polish, architecture diagram |
+| 16–17 | Jul 18–19 | Presentation deck + demo video production |
+| 18–19 | Jul 20–21 | Buffer: bug fixes, full dry-run rehearsal |
+| — | Jul 22 | Submission |
 
 ---
 
-## 11. Why this wins
+## 11. How we prove it works
 
-- Most teams will do "search over PDFs." We **connect knowledge across departments** — the actual point of the problem.
-- **Every answer is trustworthy** (sources + confidence), and it's **role-aware** across functions.
-- The assistants **do real work** — compliance + QMS, RCA with live conditions, proactive warnings.
-- We use **real industrial documents** and bring **real numbers**, matching exactly how judges score.
-- It runs **free and offline**, which doubles as a real-world selling point.
+Judges score on named, specific measurements — so we compute exactly those, live, inside
+the product, from day one: extraction accuracy, answer quality, linkage completeness,
+time-to-answer vs. keyword search, compliance-gap detection accuracy, and cross-functional
+knowledge discovery — all validated against real public industrial documents (CSB
+investigation reports, OISD standards, OSHA PSM, OEM manuals), not synthetic-only data.
 
 ---
 
-## 12. One design rule throughout
+## 12. Why this wins
 
-The "brain" (AI) sits behind a simple switch, so we can use the free online AI today, swap to a fully-offline one, or upgrade to a stronger paid model later (if the hackathon gives credits) — **without rewriting anything.** Same for the vocabulary (swap industries) and the QMS connection (plug in a real system later).
+- Most entries will demo "chat with your PDFs." We demonstrate **knowledge connecting
+  across departments** — the actual point of the problem statement — and we measure it as
+  a number, live, on stage.
+- Every answer is **traceable and confidence-scored**, and framed differently for the four
+  different roles named in the brief — trust is inspectable, not asserted.
+- The three agents **do real work**: a compliance verdict a code path can defend, an RCA
+  grounded in live conditions, and warnings that arrive before anyone asks.
+- The scorecard is **inside the product**, not just the deck — judges watch the evaluation
+  criteria get satisfied in real time.
+- It runs **fully offline on local hardware**, which is a genuine deployment requirement
+  for the regulated Indian plants this problem statement is written for — not a budget
+  trick, a business fit.
+- The whole engine swaps industries on one config file, proven live — Scalability is
+  demonstrated, not claimed.
+
+---
+
+## 13. One design rule throughout
+
+The "brain" sits behind a simple switch — swap the model provider, the industry
+vocabulary, or the QMS connection without rewriting anything else. Every new capability
+gets added at the layer that already owns that kind of decision (code for deterministic
+facts, the model for prose, the graph for connections) rather than reaching for the model
+to do something a few lines of code can do more reliably.

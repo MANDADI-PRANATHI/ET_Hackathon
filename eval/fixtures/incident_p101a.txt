@@ -1,0 +1,9 @@
+INCIDENT INVESTIGATION REPORT — Ref INC-2026-014 — 2026-05-18
+
+On 2026-05-18 crude feed pump P-101A tripped on high vibration with a failed
+mechanical seal. Standby pump p-101b was started. Pressure safety valve PSV-110A
+on reflux drum V-204 lifted and reseated within the limits of OISD-STD-105.
+
+The overdue statutory inspection on PSV110B was noted as a contributing gap.
+Vibration had been trending up for 3 weeks (a rise of about 40%) before the trip
+on 12/05/2026.

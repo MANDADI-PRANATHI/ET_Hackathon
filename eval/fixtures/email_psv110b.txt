@@ -1,0 +1,7 @@
+Subject: RE: PSV-110B statutory inspection overdue
+Date: Mon, 22 Jun 2026 09:14:00 +0530
+
+QA flagged that the statutory inspection on PSV-110B is overdue. The last
+inspection was 2025-11-06, and the 6-month cycle required under OISD STD 105 has
+lapsed. This is the same valve called out in the P-101A incident last month.
+Please book the pop-test before 2026-07-15 and raise a CAPA.

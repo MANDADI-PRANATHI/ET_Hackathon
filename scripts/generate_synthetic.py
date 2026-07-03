@@ -130,6 +130,105 @@ def nonconformances() -> None:
     )
 
 
+def _write_text(rel_path: str, content: str) -> None:
+    path = CORPUS / rel_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.strip() + "\n", encoding="utf-8")
+    print(f"  wrote {path.relative_to(ROOT)}")
+
+
+def narrative_documents() -> None:
+    """A few realistic prose documents that weave the assets into a story.
+
+    These give the graph cross-functional links no single table holds — e.g. an
+    incident narrative and an email that both point at the overdue PSV-110B,
+    connecting maintenance, safety, and compliance. They also exercise the
+    prose-extraction (AI) and regex paths, not just the structured readers.
+    """
+    # Incident report (prose -> failure modes, causal links, reg reference).
+    _write_text(
+        "incidents/INC-2026-014_P-101A_seal_failure.txt",
+        """
+INCIDENT INVESTIGATION REPORT
+Reference: INC-2026-014
+Date: 2026-05-18
+Unit: CDU-1
+
+SUMMARY
+On 2026-05-18, crude feed pump P-101A tripped on high vibration and was found
+with a failed mechanical seal, releasing a small quantity of hydrocarbon to the
+bund. There were no injuries. Standby pump P-101B was started and feed was
+maintained.
+
+ROOT CAUSE
+The mechanical seal failure was caused by shaft misalignment introduced during
+the seal replacement recorded under a recent work order. Vibration readings on
+P-101A had been trending upward for three weeks before the trip but were not
+actioned, indicating a gap in the vibration-monitoring routine.
+
+SAFETY SYSTEMS
+Pressure safety valve PSV-110A on the associated vessel V-204 lifted correctly
+and reseated. The relief protection remained within the requirements of
+OISD-STD-105.
+
+RECOMMENDATIONS
+1. Re-check alignment on P-101A after every seal replacement.
+2. Restore the vibration-monitoring routine on all crude feed pumps.
+3. Review the overdue statutory inspection on PSV-110B (see NCR raised by QA).
+Investigator: A. Sharma
+""",
+    )
+
+    # Email thread (prose -> the compliance gap discussed across departments).
+    _write_text(
+        "emails/RE_PSV-110B_inspection.eml",
+        """From: S. Patel <s.patel@refinery.example>
+To: R. Kumar <r.kumar@refinery.example>
+Cc: M. Iyer <m.iyer@refinery.example>
+Subject: RE: PSV-110B statutory inspection overdue
+Date: Mon, 22 Jun 2026 09:14:00 +0530
+
+Ravi,
+
+QA flagged during the internal audit that the statutory inspection on PSV-110B
+is overdue. Our records show the last inspection was in November 2025, and the
+6-month cycle required under OISD-STD-105 has clearly lapsed.
+
+This is the same valve called out in the P-101A incident (INC-2026-014) last
+month. We should schedule the pop-test before the next audit window and raise a
+CAPA so it is not missed again.
+
+Can maintenance book a slot this week?
+
+Thanks,
+Suresh
+""",
+    )
+
+    # Operating procedure (prose -> procedure governs asset + a parameter).
+    _write_text(
+        "procedures/SOP-CDU-021_V-204_level_control.txt",
+        """
+STANDARD OPERATING PROCEDURE
+SOP-CDU-021: Reflux Drum V-204 Level Control
+Revision: 3   Effective: 2026-01-10
+
+PURPOSE
+This procedure governs safe operation of reflux drum V-204 in unit CDU-1.
+
+NORMAL OPERATION
+Maintain V-204 level between 40% and 70%. The high-level alarm setpoint is 80%.
+If level exceeds the high-high setpoint of 90%, the feed flow measured by flow
+transmitter FT-150 must be reduced manually.
+
+RELIEF PROTECTION
+Overpressure protection for V-204 is provided by pressure safety valves PSV-110A
+and PSV-110B, set at 12 barg in accordance with OISD-STD-105. Do not isolate a
+relief valve while the drum is in service.
+""",
+    )
+
+
 def main() -> None:
     print("Generating synthetic plant records...")
     asset_register()
@@ -137,6 +236,7 @@ def main() -> None:
     inspections()
     permits()
     nonconformances()
+    narrative_documents()
     print(
         "\nDone. Add real public PDFs to the remaining corpus folders "
         "(see data/corpus/SOURCES.md)."

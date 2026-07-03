@@ -1,0 +1,7 @@
+STANDARD OPERATING PROCEDURE — SOP-CDU-021 — Reflux Drum V-204 Level Control
+Revision 3, effective 2026-01-10.
+
+Maintain V-204 level between 40% and 70%; high-level alarm at 80%. If level
+exceeds 90%, reduce feed flow measured by transmitter FT-150. Overpressure
+protection for V-204 is provided by PSV-110A and PSV-110B set at 12 barg per
+OISD-STD-105. Do not isolate a relief valve while the drum is in service.

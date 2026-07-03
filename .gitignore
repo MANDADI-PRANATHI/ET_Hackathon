@@ -8,6 +8,14 @@ venv/
 # generated extraction output (large, machine-made)
 data/staging/
 
+# generated evaluation / scorecard output
+eval/results/
+
+# Python caches / tooling
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
 # keep the corpus folder structure + docs, but not the actual data files
 data/corpus/**
 !data/corpus/**/

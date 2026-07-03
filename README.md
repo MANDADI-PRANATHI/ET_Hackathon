@@ -1,9 +1,9 @@
 # Unified Asset & Operations Brain
 ET AI Hackathon 2026 · Problem Statement #8 — Industrial Knowledge Intelligence
 
-See **[PLAN.md](PLAN.md)** for the full plan. This README covers
-**Level 0 — the foundation**: infrastructure, the ontology, the provider switch,
-and a synthetic data generator. Everything runs locally and free.
+See **[PLAN.md](PLAN.md)** for the full plan and **[CLAUDE.md](CLAUDE.md)** for the
+engineering guide. This README covers **Level 0 (foundation)** and **Level 1
+(read & extract)**. Everything runs locally and free.
 
 ---
 
@@ -69,6 +69,34 @@ Reuse the asset tags listed there so everything links in the graph.
 
 ---
 
+## Level 1 — read documents & extract facts
+Turns the messy corpus into clean, **source-stamped, confidence-scored** facts,
+staged as JSON for the graph build (Level 2).
+
+```bash
+make install-l1          # Level 1 deps (docling, embeddings) — for the full path
+make ingest-structured   # structured + regex only (runs on Level 0 deps, no AI)
+make ingest              # full: structured + regex + AI prose + embeddings
+```
+
+What it does, by the cheapest reliable method per fact:
+- **Structured tables** (CSV work orders, inspections, permits, NCRs) → read
+  straight into graph facts, no AI.
+- **Predictable identifiers** (P-101A, OISD-STD-105, dates) → regex, no AI —
+  with false-positive rejection for document references (INC-2026-014, etc.).
+- **Prose** (incident reports, emails, SOPs) → the LLM extracts facts, each tied
+  to its exact source sentence and capped below structured confidence.
+- **Drawings / P&IDs** → a vision model reads the tags (needs-review before trust).
+
+Every fact carries where it came from, how confident we are, and how it was found.
+Output lands in `data/staging/*.json`.
+
+**Measure it (judged metrics):**
+```bash
+python eval/extraction_eval.py     # entity-extraction accuracy (precision/recall/F1)
+python -m pytest tests/ -q         # regression tests (Level 0 deps only)
+```
+
 ## Project layout
 ```
 config/ontology/oil_and_gas.yaml   the asset-centric vocabulary (swap to change industry)
@@ -77,9 +105,15 @@ src/brain/ontology.py              loads + validates the ontology
 src/brain/providers/llm.py         Gemini / Ollama switch
 src/brain/providers/embeddings.py  local embeddings + reranker (used from Level 1)
 src/brain/stores/neo4j_init.py     creates the graph schema
+src/brain/schema.py                the staging data model (facts + chunks)
+src/brain/ingest/                  Level 1: readers, patterns, extraction, pipeline
+src/brain/search/keyword.py        BM25 baseline ("traditional search")
 scripts/verify_setup.py            health-check
-scripts/generate_synthetic.py      synthetic plant records
+scripts/generate_synthetic.py      synthetic plant records + narrative docs
+scripts/ingest.py                  Level 1 ingestion CLI
+eval/                              extraction benchmark (fixtures + labels + scorer)
+tests/                             regression tests (Level 0 deps only)
 data/corpus/                       the document corpus (by type)
 ```
 
-Next: **Level 1 — read documents and extract facts.**
+Next: **Level 2 — build the asset-centric knowledge graph.**
