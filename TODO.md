@@ -15,8 +15,7 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ **Level 4a — Compliance & QMS agent** (hybrid rule engine, evidence package, NCR/CAPA drafting, gap-detection benchmark 1.0)
 - ✅ **Level 4b — Maintenance & RCA agent** (readings adapter, trend detection, RCA fusion, predictive rec, optimised schedule; eval 1.0)
 - ✅ **Level 4c — Lessons-learned & proactive warnings** (recurring patterns + multi-signal warning feed; eval 1.0)
-- 🔄 **Level 5 — scorecard, UI, ontology-swap demo, arch diagram** — NEXT
-- ⏳ **Level 3 UI — mobile chat + voice + graph viz** (fold into Level 5 UI)
+- ✅ **Level 5 — scorecard, UI, ontology-swap demo, architecture doc** (all judged metrics aggregated; mobile UI with voice + graph + agent panels; manufacturing profile; ARCHITECTURE.md)
 
 ---
 
@@ -78,14 +77,28 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ `agents/lessons.py` — `find_patterns` (recurring findings, recurring failure modes, chronic repeated actions, equipment-family clusters) + `generate_warnings` combining compliance gaps + rising trends + recurring findings into a prioritised, de-duplicated feed. Deterministic core, optional LLM phrasing.
 - ✅ `scripts/lessons.py` + Makefile `lessons`; `/warnings` API endpoint; `eval/lessons_eval.py` score 1.0; `tests/test_level4c.py` 5 tests (47 total).
 
-## 🔄 Level 5 — NEXT (immediate actions)
-1. `eval/scorecard.py` — run every benchmark (extraction, copilot, compliance, rca, lessons) and aggregate into ONE JSON + human table. Makefile `scorecard`; `/scorecard` API endpoint.
-2. UI: self-contained mobile-first `web/index.html` (single file, no build) served by FastAPI static — chat (/ask) with confidence badge + clickable citations + cross-functional flag, voice input (Web Speech API), graph viz (/graph), compliance/warnings/scorecard panels.
-3. Ontology-swap demo: a second tiny profile (e.g. manufacturing) + a doc/README note showing one-config-change generality.
-4. `ARCHITECTURE.md` + a diagram (mermaid/ASCII) for the deliverable; demo-script notes.
-5. RBAC polish (role selector already in copilot); optional.
+## Level 5 — DONE (detail)
+- ✅ `eval/scorecard.py` — aggregates every benchmark into one JSON + table, mapped to the PS evaluation focus; graceful "n/a" if inputs missing. Makefile `scorecard`; `/scorecard` API endpoint. Live result: extraction 1.0, groundedness 1.0, linkage 0.958, compliance 1.0, cross-functional 1.0, RCA 1.0, lessons 1.0.
+- ✅ `web/index.html` — single-file mobile-first UI served by FastAPI at `/ui`: chat with confidence badge + clickable citations + cross-functional flag + role selector, **voice input** (Web Speech API), interactive graph (hub + neighbours), compliance / warnings / scorecard panels.
+- ✅ Ontology-swap: `config/ontology/manufacturing.yaml` (same node/rel types, different vocabulary); `make verify ONTOLOGY_PROFILE=...` proves generality.
+- ✅ `ARCHITECTURE.md` with diagrams (deliverable).
+- ✅ `tests/test_level5.py` — scorecard aggregation + ontology interchangeability (49 tests total).
 
-📝 UI decision: single-file HTML/JS served by FastAPI static (mobile-responsive, voice-capable, verifiable) instead of a Next.js toolchain — lower demo risk; Next.js noted as alternative.
+## Remaining / optional polish
+- ⚠️ Presentation deck + demo video (deliverables) — outlines/notes to draft; not code.
+- ⚠️ Neo4j-backed retrieval path (copilot currently uses the in-memory graph — sufficient for the demo; a Neo4jKnowledgeBase can implement the same surface for scale).
+- ⚠️ Docling per-page citation precision; live-LLM answer-faithfulness (RAGAS) once a key is available; real public PDFs into data/corpus.
+- ⚠️ Reg→RegRequirement→Asset write-back so OISD-STD-105 isn't a graph orphan (compliance report already stands alone).
+
+## How to run the whole thing
+```
+make up && make init && make synth            # infra + schema + synthetic corpus + readings
+make ingest        (or make ingest-structured on L0 deps)
+make build-graph                              # merge into the graph (+ Neo4j if up)
+make api                                       # then open http://localhost:8000/ui
+make scorecard                                 # every judged metric, live
+make test                                      # 49 tests, Level 0 deps only
+```
 
 ---
 

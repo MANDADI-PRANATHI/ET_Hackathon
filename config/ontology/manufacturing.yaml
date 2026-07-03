@@ -1,0 +1,95 @@
+# =============================================================================
+# Ontology profile: DISCRETE MANUFACTURING PLANT  (the "vocabulary")
+# -----------------------------------------------------------------------------
+# Proof that the engine is industry-agnostic: this file is the ONLY thing that
+# changes to move from oil & gas to manufacturing. The node/relationship TYPES
+# the engine relies on (Asset hub, Document, Chunk, WorkOrder, Inspection,
+# Regulation, NonConformance, CAPA, FailureMode, Incident, Person) are the same
+# — only the vocabulary (asset classes, tag shapes, regulations) differs.
+#
+#   make verify ONTOLOGY_PROFILE=config/ontology/manufacturing.yaml
+#
+# Grounded in real standards:
+#   ISA-95     -> Site > Area > Unit(Line) > Asset hierarchy
+#   ISO 14224  -> equipment classes + failure modes
+#   ISO 9001 / IATF 16949 -> quality management references
+# =============================================================================
+
+profile: manufacturing
+description: Asset-centric knowledge graph for a discrete manufacturing plant.
+standards: [ISA-95, ISO-14224, ISO-9001, IATF-16949]
+hub: Asset
+
+nodes:
+  - label: Asset
+    key: tag
+    description: A machine / production asset — the hub of the graph.
+    properties: [tag, name, asset_class, manufacturer, model, unit_ref, criticality]
+    asset_classes: [CNCMachine, Robot, Conveyor, Press, Motor, PLC, Sensor, Pump]
+
+  - {label: Site, key: name}
+  - {label: Area, key: name}
+  - {label: Unit, key: name}          # a production line
+
+  - label: Document
+    key: id
+    properties: [id, doc_type, title, path, source, ingested_at]
+    doc_types: [Drawing, WorkOrder, SOP, OperatingInstruction, InspectionReport,
+                ProjectFile, Email, Manual, IncidentReport, NearMiss,
+                AuditFinding, NonConformance, Permit, Regulation, QualityRecord]
+  - label: Chunk
+    key: id
+    properties: [id, text, page, embedding]
+
+  - {label: WorkOrder, key: wo_number, properties: [wo_number, action, date, status, performed_by]}
+  - {label: Inspection, key: inspection_id, properties: [inspection_id, type, last_inspection_date, result]}
+  - {label: Procedure, key: id, properties: [id, title, kind]}
+  - {label: Permit, key: permit_no, properties: [permit_no, work_type, issue_date, status]}
+  - {label: Parameter, key: id, properties: [id, name, unit, setpoint]}
+
+  - {label: Regulation, key: code}
+  - {label: RegClause, key: id}
+  - label: RegRequirement
+    key: id
+    properties: [id, applies_to_class, check_type, interval_days, parameter, operator, threshold]
+  - {label: NonConformance, key: id, properties: [id, finding, raised_date, status]}
+  - {label: CAPA, key: id, properties: [id, action, due_date, status]}
+
+  - {label: FailureMode, key: name}
+  - {label: Incident, key: id, properties: [id, title, date, severity]}
+  - {label: Person, key: id, pii: true}
+
+relationships:
+  - {type: LOCATED_IN,  from: Asset, to: Unit}
+  - {type: PART_OF,     from: Unit,  to: Area}
+  - {type: PART_OF,     from: Area,  to: Site}
+  - {type: CONNECTED_TO, from: Asset, to: Asset}
+  - {type: COMPOSED_OF,  from: Asset, to: Asset}
+  - {type: ABOUT,    from: Document, to: Asset}
+  - {type: PART_OF,  from: Chunk,    to: Document}
+  - {type: MENTIONS, from: Chunk,    to: Asset}
+  - {type: MAINTAINS,  from: WorkOrder,  to: Asset}
+  - {type: INSPECTS,   from: Inspection, to: Asset}
+  - {type: GOVERNS,    from: Procedure,  to: Asset}
+  - {type: FOR_WORK_ON, from: Permit,    to: Asset}
+  - {type: HAS_PARAMETER, from: Asset,   to: Parameter}
+  - {type: PERFORMED,  from: Person,     to: WorkOrder}
+  - {type: PART_OF_REG,  from: RegClause,      to: Regulation}
+  - {type: GOVERNS,      from: RegClause,      to: Asset}
+  - {type: DERIVED_FROM, from: RegRequirement, to: RegClause}
+  - {type: APPLIES_TO,   from: RegRequirement, to: Asset}
+  - {type: RAISED_AGAINST, from: NonConformance, to: Asset}
+  - {type: ADDRESSES,    from: CAPA,           to: NonConformance}
+  - {type: INVOLVES,  from: Incident,    to: Asset}
+  - {type: CAUSED_BY, from: Incident,    to: FailureMode}
+  - {type: AFFECTS,   from: FailureMode, to: Asset}
+
+extract_entities: [equipment_tag, process_parameter, regulatory_reference, person, date]
+
+# Manufacturing tag shapes (CNC-12, RB-200, LINE-3) + quality-standard references.
+patterns:
+  equipment_tag: '\b[A-Z]{1,3}-?\d{2,4}[A-Z]?\b'
+  regulatory_reference: 'ISO\s*\d{3,5}|IATF\s*\d{4,5}|IS\s*\d{3,5}'
+  date: '\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}'
+
+pii_labels: [Person]

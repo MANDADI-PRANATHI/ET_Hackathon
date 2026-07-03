@@ -101,6 +101,13 @@ def create_app() -> FastAPI:
     def graph(include_chunks: bool = False) -> dict:
         return graph_json(state.kb.g, include_chunks=include_chunks)
 
+    @app.get("/scorecard")
+    def scorecard() -> dict:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "eval"))
+        from scorecard import build_scorecard
+        return build_scorecard()
+
     @app.get("/rca/{asset}")
     def rca(asset: str) -> dict:
         import os as _os
@@ -154,6 +161,12 @@ def create_app() -> FastAPI:
             "evidence_package_markdown": report.to_markdown(),
             "drafts": report.drafts(),
         }
+
+    # Serve the single-file UI (if present) at /ui.
+    web_dir = Path(__file__).resolve().parents[3] / "web"
+    if web_dir.exists():
+        from fastapi.staticfiles import StaticFiles
+        app.mount("/ui", StaticFiles(directory=str(web_dir), html=True), name="ui")
 
     return app
 

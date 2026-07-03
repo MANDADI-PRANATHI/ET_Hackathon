@@ -55,6 +55,9 @@ rca:       ## Level 4b: root-cause analysis (make rca ASSET=P-101A)
 lessons:   ## Level 4c: recurring patterns + proactive warnings
 	python scripts/lessons.py
 
+scorecard: ## Level 5: aggregate every judged metric into one scorecard
+	python eval/scorecard.py
+
 eval:      ## run all benchmarks (extraction + copilot + compliance + rca + lessons)
 	python eval/extraction_eval.py && echo "" && python eval/copilot_bench.py \
 	  && echo "" && python eval/compliance_eval.py && echo "" && python eval/rca_eval.py \
@@ -64,4 +67,5 @@ test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
 .PHONY: up down logs install install-l1 install-l3 init verify synth ingest \
-        ingest-structured build-graph copilot api compliance rca lessons eval test
+        ingest-structured build-graph copilot api compliance rca lessons \
+        scorecard eval test

@@ -195,6 +195,23 @@ python eval/lessons_eval.py      # pattern/warning coverage check
   trends** — into one prioritised warning feed (e.g. *PSV-110B overdue*,
   *P-101A vibration climbing*, *"inspection overdue" recurring across assets*).
 
+## Level 5 — prove it & present it
+```bash
+make scorecard      # every judged metric, computed live, in one table
+make api            # then open http://localhost:8000/ui  (mobile-first UI)
+```
+
+- **Live scorecard** maps straight onto the problem statement's evaluation focus
+  — entity extraction, answer quality, graph linkage, compliance-gap detection,
+  cross-functional discovery — computed from the running system, not claimed.
+- **Mobile-first UI** (`web/index.html`, served at `/ui`): ask with voice, get
+  cited + confidence-scored answers, browse the asset graph, and view the
+  compliance / warnings / scorecard panels.
+- **Generic engine**: swap the industry with one setting —
+  `make verify ONTOLOGY_PROFILE=config/ontology/manufacturing.yaml`.
+
+See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the full architecture diagram.
+
 ## Project layout
 ```
 config/ontology/oil_and_gas.yaml   the asset-centric vocabulary (swap to change industry)
@@ -208,6 +225,13 @@ src/brain/ingest/                  Level 1: readers, patterns, extraction, pipel
 src/brain/search/keyword.py        BM25 baseline ("traditional search")
 src/brain/graph/                   Level 2: merge model, resolution, metrics, export
 src/brain/stores/graph_writer.py   persist the merged graph into Neo4j
+src/brain/retrieval/knowledge.py   Level 3: GraphRAG retrieval
+src/brain/copilot/                 Level 3: cited/confidence/role-aware answers
+src/brain/agents/                  Level 4: compliance, RCA, lessons-learned
+src/brain/stores/readings.py       readings adapter (time-series / OPC-UA-MQTT-shaped)
+src/brain/api/app.py               FastAPI backend (/ask /graph /compliance /rca /warnings /scorecard)
+web/index.html                     Level 5: mobile-first UI (served at /ui)
+eval/scorecard.py                  Level 5: all judged metrics in one place
 scripts/verify_setup.py            health-check
 scripts/generate_synthetic.py      synthetic plant records + narrative docs
 scripts/ingest.py                  Level 1 ingestion CLI

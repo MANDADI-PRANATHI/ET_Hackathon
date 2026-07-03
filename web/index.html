@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Sutradhar — Asset & Operations Brain</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2b3444;
+    --text:#e6edf3; --muted:#93a1b0; --accent:#3fb6ff; --accent2:#7ee787;
+    --high:#3fb950; --med:#d29922; --low:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--text);-webkit-text-size-adjust:100%}
+  header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#111826,#0d1117);
+    border-bottom:1px solid var(--line);padding:14px 16px}
+  header h1{margin:0;font-size:18px;letter-spacing:.3px}
+  header h1 span{color:var(--accent)}
+  header p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+  .wrap{max-width:900px;margin:0 auto;padding:12px 16px 96px}
+  .tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 16px;position:sticky;top:56px;
+    background:var(--bg);z-index:9;border-bottom:1px solid var(--line)}
+  .tab{white-space:nowrap;padding:8px 14px;border-radius:20px;border:1px solid var(--line);
+    background:var(--panel);color:var(--muted);font-size:13px;cursor:pointer}
+  .tab.active{background:var(--accent);color:#04121f;border-color:var(--accent);font-weight:600}
+  .view{display:none}.view.active{display:block}
+  .row{display:flex;gap:8px;align-items:center}
+  select,input,textarea,button{font:inherit}
+  .ask-bar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);
+    border-top:1px solid var(--line);padding:10px 12px}
+  .ask-inner{max-width:900px;margin:0 auto;display:flex;gap:8px}
+  #q{flex:1;padding:12px 14px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--text)}
+  button{cursor:pointer;border:none;border-radius:12px;padding:12px 16px;background:var(--accent);
+    color:#04121f;font-weight:600}
+  button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  button.mic{background:var(--panel2);color:var(--accent);border:1px solid var(--line);min-width:48px}
+  button.mic.rec{background:var(--low);color:#fff}
+  .role{padding:10px 12px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--text)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:14px;margin:12px 0}
+  .msg{background:var(--panel2)}
+  .q{color:var(--accent2);font-weight:600;margin-bottom:6px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+  .badge.High{background:rgba(63,185,80,.18);color:var(--high)}
+  .badge.Medium{background:rgba(210,153,34,.18);color:var(--med)}
+  .badge.Low{background:rgba(248,81,73,.18);color:var(--low)}
+  .xfn{display:inline-block;margin-left:8px;font-size:11px;color:var(--accent);
+    border:1px solid var(--accent);border-radius:20px;padding:2px 8px}
+  .cite{border-left:3px solid var(--line);padding:6px 10px;margin:8px 0;background:var(--panel2);
+    border-radius:0 8px 8px 0;font-size:13px}
+  .cite b{color:var(--accent)}
+  .muted{color:var(--muted);font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+  .pill{padding:2px 8px;border-radius:20px;font-size:12px;font-weight:700}
+  .pill.MET{background:rgba(63,185,80,.18);color:var(--high)}
+  .pill.GAP{background:rgba(248,81,73,.18);color:var(--low)}
+  .pill.UNKNOWN{background:rgba(147,161,176,.18);color:var(--muted)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .tile{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .tile .v{font-size:26px;font-weight:800;color:var(--accent2)}
+  .tile .k{font-size:12px;color:var(--muted);margin-top:4px}
+  .warn{border-left:4px solid var(--med);padding:8px 12px;margin:8px 0;background:var(--panel2);border-radius:0 8px 8px 0}
+  .warn.High{border-color:var(--low)} .warn.Medium{border-color:var(--med)} .warn.Low{border-color:var(--muted)}
+  svg{width:100%;height:auto;background:var(--panel2);border-radius:12px}
+  .hub{fill:var(--accent)} .node{fill:#8b949e} .lbl{fill:var(--text);font-size:9px}
+  .hint{color:var(--muted);font-size:12px;margin:6px 0 0}
+</style>
+</head>
+<body>
+<header>
+  <h1><span>Sutradhar</span> — Unified Asset &amp; Operations Brain</h1>
+  <p>Ask anything across the plant's documents. Answers are cited, confidence-scored, and role-aware.</p>
+</header>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-v="ask">Ask</div>
+  <div class="tab" data-v="graph">Graph</div>
+  <div class="tab" data-v="compliance">Compliance</div>
+  <div class="tab" data-v="warnings">Warnings</div>
+  <div class="tab" data-v="score">Scorecard</div>
+</div>
+
+<div class="wrap">
+  <div class="view active" id="view-ask">
+    <div class="row" style="margin:8px 0">
+      <span class="muted">Role:</span>
+      <select class="role" id="role">
+        <option>engineer</option><option>technician</option>
+        <option>safety_officer</option><option>auditor</option><option>operator</option>
+      </select>
+      <span class="muted" id="health"></span>
+    </div>
+    <div id="chat"></div>
+    <p class="hint">Try: “Is PSV-110B overdue for inspection?” · “Why did P-101A fail?” ·
+      “What protects V-204 and at what setpoint?”</p>
+  </div>
+
+  <div class="view" id="view-graph">
+    <div class="row" style="margin:8px 0">
+      <span class="muted">Asset hub:</span>
+      <select class="role" id="assetSel"></select>
+    </div>
+    <div id="graphBox"></div>
+  </div>
+
+  <div class="view" id="view-compliance"><div id="compBox" class="muted">Loading…</div></div>
+  <div class="view" id="view-warnings"><div id="warnBox" class="muted">Loading…</div></div>
+  <div class="view" id="view-score"><div id="scoreBox" class="muted">Loading…</div></div>
+</div>
+
+<div class="ask-bar" id="askbar">
+  <div class="ask-inner">
+    <button class="mic" id="mic" title="Voice input">🎤</button>
+    <input id="q" placeholder="Ask the plant brain…" autocomplete="off" />
+    <button id="send">Ask</button>
+  </div>
+</div>
+
+<script>
+const API = ""; // same origin
+const $ = s => document.querySelector(s);
+let GRAPH = null;
+
+// --- tabs ---
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");
+  $("#view-"+t.dataset.v).classList.add("active");
+  $("#askbar").style.display = t.dataset.v==="ask" ? "block":"none";
+  if(t.dataset.v==="graph") loadGraph();
+  if(t.dataset.v==="compliance") loadCompliance();
+  if(t.dataset.v==="warnings") loadWarnings();
+  if(t.dataset.v==="score") loadScore();
+});
+
+// --- health ---
+fetch(API+"/health").then(r=>r.json()).then(h=>{
+  $("#health").textContent = `· ${h.assets} assets · ${h.chunks} passages · LLM ${h.llm_ready?"on":"off"}`;
+}).catch(()=>{$("#health").textContent="· API offline"});
+
+// --- ask ---
+async function ask(){
+  const q = $("#q").value.trim(); if(!q) return;
+  $("#q").value="";
+  const chat = $("#chat");
+  const card = document.createElement("div");
+  card.className="card msg";
+  card.innerHTML = `<div class="q">${esc(q)}</div><div class="muted">Thinking…</div>`;
+  chat.prepend(card);
+  try{
+    const res = await fetch(API+"/ask",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question:q, role:$("#role").value})});
+    const a = await res.json();
+    card.innerHTML = renderAnswer(a);
+  }catch(e){ card.innerHTML = `<div class="q">${esc(q)}</div><div class="badge Low">API error</div>`; }
+}
+function renderAnswer(a){
+  const cites = (a.citations||[]).slice(0,8).map(c=>{
+    const loc = c.page ? ` p${c.page}`:"";
+    const name = (c.path||"").split(/[\\/]/).pop();
+    return `<div class="cite"><b>[${c.n}]</b> (${c.doc_type||c.kind}) ${esc(name)}${loc}<br>
+      <span class="muted">${esc((c.snippet||"").slice(0,160))}</span></div>`;
+  }).join("");
+  const xfn = a.cross_functional ? `<span class="xfn">cross-functional: ${(a.source_doc_types||[]).join(", ")}</span>`:"";
+  return `<div class="q">${esc(a.question)}</div>
+    <div style="margin:8px 0">${esc(a.answer)}</div>
+    <div><span class="badge ${a.confidence_label}">Confidence: ${a.confidence_label} (${a.confidence})</span>${xfn}</div>
+    ${a.assets&&a.assets.length?`<div class="muted" style="margin-top:6px">About: ${a.assets.join(", ")}</div>`:""}
+    <div style="margin-top:8px">${cites}</div>`;
+}
+$("#send").onclick=ask;
+$("#q").addEventListener("keydown",e=>{if(e.key==="Enter")ask();});
+
+// --- voice (Web Speech API) ---
+const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){
+  const rec=new SR(); rec.lang="en-IN"; rec.interimResults=false;
+  $("#mic").onclick=()=>{ $("#mic").classList.add("rec"); try{rec.start();}catch(e){} };
+  rec.onresult=e=>{ $("#q").value=e.results[0][0].transcript; $("#mic").classList.remove("rec"); ask(); };
+  rec.onerror=()=>$("#mic").classList.remove("rec");
+  rec.onend=()=>$("#mic").classList.remove("rec");
+} else { $("#mic").style.display="none"; }
+
+// --- graph ---
+async function loadGraph(){
+  if(!GRAPH){ GRAPH = await (await fetch(API+"/graph")).json();
+    const sel=$("#assetSel");
+    GRAPH.nodes.filter(n=>n.hub).forEach(n=>{
+      const o=document.createElement("option"); o.value=n.value; o.textContent=n.display||n.value; sel.appendChild(o);
+    });
+    sel.onchange=()=>drawGraph(sel.value);
+  }
+  if($("#assetSel").value) drawGraph($("#assetSel").value);
+}
+function drawGraph(asset){
+  const id="Asset:"+asset;
+  const edges=GRAPH.edges.filter(e=>e.source===id||e.target===id);
+  const nbrs=[...new Set(edges.map(e=>e.source===id?e.target:e.source))];
+  const W=680,H=Math.max(300,120+nbrs.length*10),cx=W/2,cy=H/2,R=Math.min(cx,cy)-60;
+  const byId=Object.fromEntries(GRAPH.nodes.map(n=>[n.id,n]));
+  let s=`<svg viewBox="0 0 ${W} ${H}">`;
+  nbrs.forEach((nid,i)=>{
+    const ang=2*Math.PI*i/nbrs.length, x=cx+R*Math.cos(ang), y=cy+R*Math.sin(ang);
+    const et=edges.find(e=>e.source===nid||e.target===nid);
+    s+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#2b3444"/>`;
+    s+=`<circle cx="${x}" cy="${y}" r="6" class="node"/>`;
+    const n=byId[nid]||{}; const lab=(n.label||"")+": "+((n.display||n.value||"").slice(0,14));
+    s+=`<text class="lbl" x="${x}" y="${y-9}" text-anchor="middle">${esc(lab)}</text>`;
+    if(et) s+=`<text class="lbl" x="${(cx+x)/2}" y="${(cy+y)/2}" text-anchor="middle" fill="#5a6b80">${esc(et.type)}</text>`;
+  });
+  s+=`<circle cx="${cx}" cy="${cy}" r="16" class="hub"/>`;
+  s+=`<text class="lbl" x="${cx}" y="${cy+3}" text-anchor="middle" fill="#04121f" font-weight="bold">${esc(asset)}</text></svg>`;
+  $("#graphBox").innerHTML=`<div class="card"><div class="muted">${nbrs.length} connections — ${asset} at the hub</div>${s}</div>`;
+}
+
+// --- compliance ---
+async function loadCompliance(){
+  const d=await (await fetch(API+"/compliance")).json();
+  const rows=d.results.map(r=>`<tr><td>${r.asset}</td><td>${r.code}</td>
+    <td><span class="pill ${r.status}">${r.status}</span></td><td>${esc(r.detail)}</td></tr>`).join("");
+  const drafts=(d.drafts||[]).map(x=>`<div class="warn High"><b>${x.non_conformance.id}</b> (${x.non_conformance.asset}):
+    ${esc(x.non_conformance.finding)}<br><span class="muted">→ ${x.capa.id}: ${esc(x.capa.action)} (due ${x.capa.due_date})</span></div>`).join("");
+  $("#compBox").innerHTML=`<div class="card"><h3>Compliance — assessed ${d.assessed_on}</h3>
+    <p>${d.summary.MET} met · <b style="color:var(--low)">${d.summary.GAP} gaps</b> · ${d.summary.UNKNOWN} unknown</p>
+    <table><tr><th>Asset</th><th>Reg</th><th>Status</th><th>Detail</th></tr>${rows}</table></div>
+    ${drafts?`<div class="card"><h3>Auto-drafted QMS actions</h3>${drafts}</div>`:""}`;
+}
+
+// --- warnings ---
+async function loadWarnings(){
+  const d=await (await fetch(API+"/warnings")).json();
+  const ws=d.warnings.map(w=>`<div class="warn ${w.severity}"><b>[${w.severity}] ${w.asset}</b> — ${esc(w.message)}
+    <br><span class="muted">basis: ${w.basis}</span></div>`).join("");
+  const ps=d.patterns.map(p=>`<li>${esc(p.kind.replace(/_/g," "))}: <b>${esc(p.key)}</b> ×${p.count}
+    <span class="muted">(${p.assets.join(", ")})</span></li>`).join("");
+  $("#warnBox").innerHTML=`<div class="card"><h3>Proactive warnings</h3>${ws||"<span class=muted>None</span>"}</div>
+    <div class="card"><h3>Recurring patterns in plant history</h3><ul>${ps}</ul></div>`;
+}
+
+// --- scorecard ---
+async function loadScore(){
+  const d=await (await fetch(API+"/scorecard")).json();
+  const v=x=>x&&(x.value!==undefined?x.value:(x.groundedness!==undefined?x.groundedness:"n/a"));
+  const tiles=[
+    ["Entity extraction (F1)",v(d.entity_extraction_accuracy)],
+    ["Answer groundedness",v(d.query_answer_quality)],
+    ["Graph linkage",v(d.knowledge_graph_linkage_completeness)],
+    ["Compliance gap (F1)",v(d.compliance_gap_detection)],
+    ["Cross-functional",v(d.cross_functional_discovery)],
+    ["RCA quality",v(d.rca_quality)],
+    ["Lessons quality",v(d.lessons_quality)],
+  ].map(([k,val])=>`<div class="tile"><div class="v">${val}</div><div class="k">${k}</div></div>`).join("");
+  $("#scoreBox").innerHTML=`<div class="card"><h3>Live scorecard — maps to the evaluation focus</h3>
+    <div class="tiles">${tiles}</div></div>`;
+}
+
+function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+</script>
+</body>
+</html>
