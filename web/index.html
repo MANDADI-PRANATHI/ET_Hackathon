@@ -120,6 +120,7 @@ label.lbl{font-size:12.5px;font-weight:500;color:hsl(var(--muted-foreground))}
 .b-Low,.b-GAP{background:hsl(var(--danger-bg));color:hsl(var(--danger));border-color:hsl(var(--danger)/.25)}
 .badge.outline{background:hsl(var(--card));color:hsl(var(--muted-foreground));border-color:hsl(var(--border))}
 .badge.indigo{background:hsl(var(--accent));color:hsl(var(--primary));border-color:hsl(var(--primary)/.22)}
+.badge.mono-badge{font-family:var(--font-mono);font-size:10.5px}
 .tag{font-family:var(--font-mono);font-size:12px;font-weight:500;padding:2px 7px;border-radius:6px;
   background:hsl(var(--muted));color:hsl(var(--foreground))}
 
@@ -320,21 +321,47 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
           <p>Facts merge into one <b>asset-centric graph</b> — every pump, valve and vessel becomes a hub
              with its history, documents and rules linked to it. Not a pile of text.</p></div></div>
         <div class="pstep"><div class="pnum">3</div><div class="pbody">
-          <h4>Retrieve <span class="ptag">GraphRAG</span></h4>
-          <p>A question walks the <b>graph</b> (the asset + its neighbours) <i>and</i> does meaning-search,
-             then combines both — which is what lets a maintenance question be answered by a safety document.</p></div></div>
+          <h4>Retrieve <span class="ptag local">local hybrid search</span></h4>
+          <p>A question walks the <b>graph</b> (the asset + its neighbours) <i>and</i> a local hybrid search —
+             BM25 keyword + on-device embeddings, fused and reranked by a local cross-encoder. Every stage
+             here runs on free, on-device models; this is what lets a maintenance question be answered
+             by a safety document, with zero API calls.</p></div></div>
         <div class="pstep"><div class="pnum">4</div><div class="pbody">
           <h4>Decide <span class="ptag code">code decides</span></h4>
           <p>The agents let <b>plain code</b> make the verdict — "239 days &gt; 182 → GAP", a rising trend, a
              recurring pattern. The model never guesses pass/fail, so an auditor can trust it.</p></div></div>
         <div class="pstep"><div class="pnum">5</div><div class="pbody">
-          <h4>Answer <span class="ptag ai">AI narrates</span></h4>
-          <p>Cited, confidence-scored, role-aware. The LLM writes the final paragraph on top of evidence
-             that already stands on its own.</p></div></div>
+          <h4>Answer <span class="ptag ai">AI narrates (optional)</span></h4>
+          <p>Cited, confidence-scored, role-aware. If a cloud/local LLM is configured it writes the final
+             paragraph; if not, the same evidence is composed into a readable brief by local code —
+             <b>either way the facts, citations, and confidence are identical.</b></p></div></div>
       </div>
-      <div class="callout">🧠 <b>The LLM is the narrator, not the brain.</b> Switch it off ("brain offline")
-        and the system still extracts facts, builds the graph, checks compliance, runs RCA, and shows
-        cited evidence — because the intelligence lives in the graph and the rules, not one API call.</div>
+      <div class="callout">🧠 <b>The LLM is a narrator, not the brain.</b> Retrieval, the knowledge graph,
+        every agent verdict, and the answer's confidence score run on local models and plain code — a
+        cloud API is never required to get a correct, cited answer. This matters for real plants: many
+        can't legally send drawings or incident data to a foreign cloud. Sutradhar runs end-to-end on
+        plant hardware with zero ongoing API dependency.</div>
+    </div>
+
+    <div class="card">
+      <h3>What needs a network call — and what never does</h3>
+      <div class="desc">Deliberately minimised. Every row marked "no" runs the same whether or not
+        you have internet, an API key, or a cloud budget.</div>
+      <table>
+        <thead><tr><th>Capability</th><th>Needs a cloud call?</th><th>Runs on</th></tr></thead>
+        <tbody>
+          <tr><td>Structured data (tables, CSVs, CMMS exports)</td><td><span class="badge b-MET">no</span></td><td>plain code</td></tr>
+          <tr><td>Equipment tags, dates, regulation refs</td><td><span class="badge b-MET">no</span></td><td>regex</td></tr>
+          <tr><td>Finding &amp; ranking the right evidence</td><td><span class="badge b-MET">no</span></td><td>local BM25 + embeddings + reranker</td></tr>
+          <tr><td>Compliance verdict (met/gap/unknown)</td><td><span class="badge b-MET">no</span></td><td>plain code (exact date math)</td></tr>
+          <tr><td>RCA trend detection &amp; scheduling</td><td><span class="badge b-MET">no</span></td><td>plain code</td></tr>
+          <tr><td>Answer confidence score</td><td><span class="badge b-MET">no</span></td><td>plain code</td></tr>
+          <tr><td>Answer composition (no LLM configured)</td><td><span class="badge b-MET">no</span></td><td>local template over cited evidence</td></tr>
+          <tr><td>Prose fact extraction (unstructured text)</td><td><span class="badge b-UNKNOWN">optional</span></td><td>cloud LLM <i>or</i> a local model via Ollama</td></tr>
+          <tr><td>Drawing / P&amp;ID tag reading</td><td><span class="badge b-UNKNOWN">optional</span></td><td>cloud vision <i>or</i> a local vision model via Ollama</td></tr>
+          <tr><td>Final answer's written narrative</td><td><span class="badge b-UNKNOWN">optional</span></td><td>cloud LLM <i>or</i> a local model via Ollama</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -373,9 +400,14 @@ async function loadHow(){
   ].map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
 }
 
+let HEALTH = {};
 fetch("/health").then(r=>r.json()).then(h=>{
+  HEALTH = h;
+  const local = h.semantic_ready ? (h.rerank_ready ? "hybrid+rerank" : "hybrid") : "keyword";
+  const cloud = h.llm_ready ? "cloud narrative on" : "local mode";
   $("#health").innerHTML =
-    `<span class="dot"></span> ${h.assets} assets · ${h.chunks} passages · brain ${h.llm_ready?"online":"offline"}`;
+    `<span class="dot"></span> ${h.assets} assets · ${h.chunks} passages · ` +
+    `search: ${local} · ${cloud}`;
 }).catch(()=>{ $("#health").innerHTML = `<span class="dot off"></span> API offline`; });
 
 /* ── ask ── */
@@ -402,11 +434,16 @@ function renderAnswer(a){
   const xfn=a.cross_functional
     ? `<span class="badge indigo">⇄ cross-functional · ${(a.source_doc_types||[]).join(", ")}</span>`:"";
   const assets=(a.assets||[]).map(x=>`<span class="tag">${esc(x)}</span>`).join(" ");
+  const modeBadge = a.mode==="extractive"
+    ? `<span class="badge outline" title="Composed directly from cited evidence by local code — no cloud call">⚡ local mode</span>`
+    : `<span class="badge outline" title="Narrative written by the configured language model, still grounded in the same cited evidence">✨ cloud-polished</span>`;
+  const retrBadge = a.retrieval_method
+    ? `<span class="badge outline mono-badge" title="How the evidence was found">${esc(a.retrieval_method)}</span>` : "";
   return `<div class="q-head"><span class="qmark">Q</span><span class="q-text">${esc(a.question)}</span></div>
     <div class="answer">${esc(a.answer)}</div>
     <div class="meta-row">
       <span class="badge b-${a.confidence_label}">${a.confidence_label==="High"?ICON_CHECK:""}Confidence ${a.confidence_label} · ${a.confidence}</span>
-      ${xfn} ${assets}
+      ${modeBadge} ${retrBadge} ${xfn} ${assets}
     </div>
     <div class="cites">${cites}</div>`;
 }

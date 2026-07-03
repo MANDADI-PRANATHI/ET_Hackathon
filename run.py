@@ -8,11 +8,20 @@ What it does (no Docker, no API key, no heavy ML deps required):
   3. reads the documents and extracts facts  (structured + regex path)
   4. starts the API + UI and opens your browser at http://localhost:8000/ui
 
-Everything runs from local files, in memory. For the *full* pipeline (real PDFs,
-semantic search, written LLM answers, Neo4j) see README.md — but this script is a
-complete, self-contained working prototype on its own.
+Everything runs from local files, in memory. The API tries to load local
+embeddings + a reranker for hybrid semantic search at startup — if
+`sentence-transformers` is already installed it just works; if not, it falls
+back to keyword search with no error. Either way, the default sample corpus is
+large enough that the API skips auto-embedding at boot (to keep launch fast)
+and starts on keyword search — run `python scripts/embed.py` once afterwards
+(~2-3 min, one-time, fully local) to cache vectors for instant hybrid search
+on every future launch. For the *full* pipeline (real PDFs via Docling, AI
+prose extraction, vision drawing reading, Neo4j) see README.md — but this
+script is a complete, self-contained working prototype on its own, including
+without any cloud API key at all (see "Runs fully offline" in README.md).
 
-Flags:  --port 8000   --no-open   --full (also install L1/L3 deps + embeddings)
+Flags:  --port 8000   --no-open   --full (also install L1/L3 deps, use AI
+        extraction + embeddings during ingestion itself)
 """
 from __future__ import annotations
 
@@ -74,6 +83,14 @@ def build_corpus(full: bool) -> None:
                            load_ontology(), use_ai=full, use_embeddings=full)
     print(f"   staged {counts['documents']} documents · {counts['nodes']} facts · "
           f"{counts['chunks']} passages")
+
+    if full:
+        _step("Caching passage embeddings for instant hybrid search (local, one-time)")
+        import embed
+        embed.main()
+    else:
+        print("   note: run `python scripts/embed.py` once to cache embeddings for "
+              "instant hybrid semantic search (keyword search works immediately either way).")
 
 
 def launch(port: int, open_browser: bool) -> None:

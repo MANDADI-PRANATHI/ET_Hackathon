@@ -30,10 +30,11 @@ for the engineering guide.
      ┌───────────────────────┐   ┌──────────────────────────┐   ┌──────────────────────────┐
      │  COPILOT (Level 3)    │   │   AGENTS (Level 4)        │   │  SCORECARD (Level 5)      │
      │  GraphRAG retrieval   │   │  4a compliance (hybrid)   │   │  every judged metric,     │
-     │  = graph neighbourhood│   │  4b RCA + readings adapter│   │  computed live            │
-     │    + meaning search   │   │  4c lessons + warnings    │   │                           │
-     │  cited · confidence   │   │  code decides; LLM writes │   │  ontology-swap demo       │
-     │  role-aware · PII gate │   │  the narrative            │   │                           │
+     │  = graph neighbourhood│   │  4b RCA + readings adapter│   │  computed live, 0 API     │
+     │  + LOCAL hybrid search │   │  4c lessons + warnings    │   │  calls                    │
+     │  (BM25+dense+rerank)  │   │  code decides; LLM writes │   │  ontology-swap demo       │
+     │  cited · confidence   │   │  the narrative (optional) │   │                           │
+     │  role-aware · PII gate │   │                            │   │                           │
      └───────────┬───────────┘   └────────────┬─────────────┘   └────────────┬─────────────┘
                  └───────────────────┬─────────┴───────────────────┬─────────┘
                                      ▼                             ▼
@@ -75,6 +76,12 @@ what makes the system auditable end-to-end.
    swap without touching call sites.
 6. **Degrade gracefully** — no API key, no Neo4j, no optional dep must break a
    path that doesn't need it. The whole product runs offline from `data/staging`.
+7. **Local models first, cloud last** — retrieval (BM25 + local embeddings +
+   local reranker), every agent verdict, and confidence scoring run with zero
+   API calls. The cloud/local LLM only adds narrative polish; the copilot
+   composes a genuinely readable answer from the same cited evidence when none
+   is configured. This is a deliberate architecture choice, not a fallback
+   bolted on afterwards — see CLAUDE.md's "Offline-first architecture" section.
 
 ## 5. Storage
 
@@ -85,31 +92,44 @@ what makes the system auditable end-to-end.
   adapter).
 - **MinIO** — raw document storage (S3-compatible).
 
-## 6. Retrieval (GraphRAG)
+## 6. Retrieval — local hybrid search + GraphRAG
 
 ```
-question ─▶ spot asset(s)  ─▶ graph neighbourhood (work orders, inspections,
-              (tag/name/       incidents, procedures, regulations) ─┐
-               class)                                               ├─▶ combine ─▶ LLM ─▶ cited,
-          ─▶ meaning search (embeddings cosine, or keyword fallback)┘             confidence-scored
-                                                                                   role-aware answer
+question ─▶ spot asset(s)  ─▶ graph neighbourhood (work orders, inspections,     ┐
+              (tag/name/       incidents, procedures, regulations)              │
+               class)                                                          │
+                                                                                ├─▶ combine ─▶ LLM (optional) ─▶ cited,
+          ─▶ LOCAL HYBRID SEARCH — all three stages on-device, zero API calls: │      or local extractive       confidence-scored
+              ① BM25 keyword  +  ② dense embedding cosine                       │      template over the         role-aware answer
+              ③ Reciprocal Rank Fusion of ① and ②                               │      same evidence
+              ④ local cross-encoder reranks the fused pool ──────────────────── ┘
 ```
 
-Graph + meaning search together are what let a maintenance question be answered
-by a safety document — measured as the **cross-functional discovery rate**.
+Graph + hybrid search together are what let a maintenance question be answered
+by a safety document — measured as the **cross-functional discovery rate**. The
+LLM box is optional by construction: with none configured (or a failed call),
+step 5 falls back to a deterministic, role-framed answer built from the exact
+same cited evidence (`Answer.mode == "extractive"`) instead of degrading to an
+error. Retrieval quality, evidence selection, and confidence are therefore
+never a function of API availability.
 
 ## 7. Evaluation mapping (the scorecard)
 
-| PS evaluation focus | Metric source | Result* |
-|---|---|---|
-| Entity extraction accuracy | `eval/extraction_eval` | F1 1.0 |
-| Query answer quality | `eval/copilot_bench` (groundedness) | 1.0 |
-| Knowledge-graph linkage completeness | `graph/metrics` | 0.958 |
-| Time-to-answer vs traditional search | `copilot_bench` (GraphRAG vs BM25) | measured |
-| Compliance-gap detection accuracy | `eval/compliance_eval` | F1 1.0 |
-| Cross-functional knowledge discovery | `eval/copilot_bench` | 1.0 |
+| PS evaluation focus | Metric source | Result* | Needs an API call? |
+|---|---|---|---|
+| Entity extraction accuracy | `eval/extraction_eval` | F1 1.0 | No |
+| Query answer quality | `eval/copilot_bench` (groundedness) | 1.0 | No |
+| Answer faithfulness (embedding-grounded) | `eval/faithfulness_eval` | discrimination 1.0 | No — local embedder only |
+| Knowledge-graph linkage completeness | `graph/metrics` | 1.0 (at 408-asset scale) | No |
+| Time-to-answer vs traditional search | `copilot_bench` (GraphRAG vs BM25) | measured | No |
+| Compliance-gap detection accuracy | `eval/compliance_eval` | F1 1.0 | No |
+| RCA / lessons-learned quality | `eval/rca_eval`, `eval/lessons_eval` | 1.0 / 1.0 | No |
+| Cross-functional knowledge discovery | `eval/copilot_bench` | 1.0 | No |
 
-\*On the synthetic corpus; `make scorecard` recomputes live.
+\*On the demo corpus (408 assets, 6,257 passages incl. real CSB/OSHA
+references); `make scorecard` recomputes every row live. Every metric above is
+reproducible with **zero network calls** — the scorecard itself doesn't depend
+on the same cloud API the product is designed not to depend on.
 
 ## 8. Generic engine, swappable industry
 
@@ -122,3 +142,14 @@ shapes, regulations). Swap with one setting:
 ```
 make verify ONTOLOGY_PROFILE=config/ontology/manufacturing.yaml
 ```
+
+## 9. Validated on real industrial documents
+
+Alongside the synthetic plant, the corpus includes real, publicly citable
+material: two U.S. Chemical Safety Board investigation summaries (Honeywell
+Geismar heat-exchanger rupture, Jan 2023; BP-Husky Toledo relief-valve/SIS
+failure, Sep 2022) and the actual text of OSHA 29 CFR 1910.119(j) (mechanical
+integrity — inspection, documentation, and deficiency-correction requirements).
+Every fact in those documents traces to a real, named public source rather
+than being synthesised, directly addressing the brief's "ideally validated
+with real industrial document samples" evaluation note.

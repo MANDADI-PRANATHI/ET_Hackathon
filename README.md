@@ -16,9 +16,29 @@ reading + semantic search.)
 
 Then test it:
 ```bash
-make test         # 54 automated tests
+make test         # regression tests
 make scorecard    # every judged metric, computed live
 ```
+
+## 🔌 Runs fully offline — the LLM is optional
+The system's core intelligence — finding the right evidence, connecting it
+across departments, and every agent's verdict — runs on **local models and
+plain code**, not a cloud API:
+
+| Capability | Needs a cloud call? | Runs on |
+|---|---|---|
+| Structured data, tags, dates, reg-refs | **No** | plain code + regex |
+| Finding & ranking the right evidence | **No** | local BM25 + embeddings + reranker |
+| Compliance verdict, RCA trends, confidence score | **No** | plain code |
+| Answer composed with no LLM configured | **No** | local template over cited evidence |
+| Prose extraction, drawing reading, final narrative | Optional | cloud LLM **or** a local model via Ollama |
+
+Run `make embed` once to cache semantic search locally (small one-time model
+download, then instant forever). With no API key at all, `python run.py` still
+gives cited, confidence-scored, hybrid-search answers — the cloud model only
+adds a polished paragraph on top. See the in-app **"How it works"** tab for the
+live version of this table, and [CLAUDE.md](CLAUDE.md) for why this matters for
+plants that legally can't send data to a foreign cloud.
 
 **Want to stress-test with a large plant?** The sample size scales:
 ```bash
@@ -39,7 +59,9 @@ The sections below explain each layer (Level 0 foundation → Level 5) in detail
 ## What Level 0 gives you
 - **Local infrastructure** (Docker): Neo4j (connections + vector search), Postgres, MinIO — all $0.
 - **The ontology** (`config/ontology/oil_and_gas.yaml`) — the asset-centric "vocabulary", swappable per industry.
-- **The brain switch** (`src/brain/providers/llm.py`) — Gemini free tier *or* offline Ollama, one setting.
+- **The brain switch** (`src/brain/providers/llm.py`) — Gemini free tier *or* offline Ollama, one
+  setting. Optional: retrieval, agents, and confidence scoring never depend on it (see "Runs fully
+  offline" below).
 - **Schema setup** — Neo4j constraints + a vector index, generated from the ontology.
 - **A synthetic corpus** — realistic work orders, inspections, permits, and non-conformances.
 - **A health-check** that confirms everything is wired up.
@@ -94,7 +116,24 @@ A passing `make verify` looks like:
 `make synth` fills the structured folders. Add real public PDFs (CSB incident
 reports, OISD/OSHA regulations, OEM manuals, sample P&IDs) to the other folders
 under `data/corpus/` — see **[data/corpus/SOURCES.md](data/corpus/SOURCES.md)**.
-Reuse the asset tags listed there so everything links in the graph.
+Reuse the asset tags listed there so everything links in the graph. The corpus
+already ships with real, publicly cited reference material: two U.S. Chemical
+Safety Board investigation summaries (Honeywell Geismar heat-exchanger rupture,
+BP Toledo relief-valve/SIS failure) in `data/corpus/incidents/`, and the actual
+OSHA 29 CFR 1910.119(j) mechanical-integrity text in `data/corpus/regulations/`
+— every fact in those files traces to a real, citable public source.
+
+**Supported formats**: `.csv`/`.tsv` (read by code, no AI) · `.pdf .docx .doc
+.xlsx .xls .pptx .html` (via Docling, needs `make install-l1`) · `.txt .md
+.eml` (stdlib, no extra deps) · `.png .jpg .jpeg .tif .tiff .bmp` (drawings —
+read by a vision model; needs `LLM_PROVIDER` configured, cloud or local Ollama).
+One unreadable file is skipped with a warning, never crashes the batch.
+
+**After adding files:**
+```bash
+make ingest && make build-graph && make embed   # re-run; MERGE + embed cache
+                                                 # are both idempotent/incremental
+```
 
 ---
 
@@ -154,6 +193,7 @@ Answers plain-English questions using the graph **and** meaning-search together,
 with clickable citations, a computed confidence, and role-aware framing.
 
 ```bash
+make embed                                                            # cache embeddings once
 make copilot Q="Is PSV-110B overdue for its statutory inspection?"   # CLI
 make api                                                             # HTTP API (:8000/docs)
 python eval/copilot_bench.py                                         # judged metrics
@@ -162,17 +202,26 @@ python eval/copilot_bench.py                                         # judged me
 - **GraphRAG, not plain RAG**: spot the asset → pull its connected facts from the
   graph → add meaning-matched passages → answer. This is what lets a maintenance
   question be answered by a safety document (**cross-functional discovery**).
+- **Local hybrid retrieval**: BM25 keyword search + on-device embeddings are
+  fused with Reciprocal Rank Fusion, then a local cross-encoder reranks the
+  result — three retrieval stages, zero API calls. Falls back cleanly to
+  keyword-only if the local models aren't installed.
+- **Works with no LLM at all**: if no cloud/local model is configured (or a
+  call fails), the copilot composes a genuinely readable, role-framed answer
+  directly from the same cited evidence (`mode: "extractive"`) instead of a
+  "sorry, no answer" message. A configured LLM just adds polish on top
+  (`mode: "generative"`).
 - **Confidence is computed** from extraction certainty, graph linkage, retrieval
   match, and multi-document agreement — a weak answer says so.
 - **Every claim is cited** back to a source document (and page where known).
 - **Role-aware** (technician / engineer / safety officer / auditor / operator),
   with personal data redacted for roles not cleared to see it.
-- Runs over the merged graph from `data/staging` — **no Neo4j required**; works
-  with the local embedder or a keyword fallback, and shows cited evidence even
-  when no writer-LLM is configured.
+- Runs over the merged graph from `data/staging` — **no Neo4j required**.
 
 Current benchmark (synthetic corpus): groundedness **1.0**, cross-functional
-discovery **1.0**, asset-spotting **1.0** across 8 expert questions.
+discovery **1.0**, asset-spotting **1.0** across 8 expert questions, local
+answer-faithfulness discrimination **1.0** (measured with zero API calls —
+see `eval/faithfulness_eval.py`).
 
 ## Level 4a — Compliance & QMS agent
 Maps regulations against real records and flags gaps — the yes/no decision made
@@ -239,6 +288,9 @@ make api            # then open http://localhost:8000/ui  (mobile-first UI)
   compliance / warnings / scorecard panels.
 - **Generic engine**: swap the industry with one setting —
   `make verify ONTOLOGY_PROFILE=config/ontology/manufacturing.yaml`.
+- **Answer faithfulness, measured offline**: a local embedding-based scorer
+  checks whether the answer's claims are actually grounded in the retrieved
+  evidence — no LLM judge, no API call, fully reproducible with no internet.
 
 See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the full architecture diagram.
 
@@ -255,20 +307,23 @@ src/brain/ingest/                  Level 1: readers, patterns, extraction, pipel
 src/brain/search/keyword.py        BM25 baseline ("traditional search")
 src/brain/graph/                   Level 2: merge model, resolution, metrics, export
 src/brain/stores/graph_writer.py   persist the merged graph into Neo4j
-src/brain/retrieval/knowledge.py   Level 3: GraphRAG retrieval
-src/brain/copilot/                 Level 3: cited/confidence/role-aware answers
+src/brain/retrieval/knowledge.py   Level 3: local hybrid GraphRAG retrieval (BM25+dense+rerank)
+src/brain/copilot/answer.py        Level 3: cited/confidence/role-aware answers + extractive fallback
+src/brain/copilot/faithfulness.py  offline, embedding-based answer-faithfulness scorer
 src/brain/agents/                  Level 4: compliance, RCA, lessons-learned
 src/brain/stores/readings.py       readings adapter (time-series / OPC-UA-MQTT-shaped)
 src/brain/api/app.py               FastAPI backend (/ask /graph /compliance /rca /warnings /scorecard)
-web/index.html                     Level 5: mobile-first UI (served at /ui)
+web/index.html                     Level 5: mobile-first UI (served at /ui) incl. "How it works"
 eval/scorecard.py                  Level 5: all judged metrics in one place
 scripts/verify_setup.py            health-check
-scripts/generate_synthetic.py      synthetic plant records + narrative docs
+scripts/generate_synthetic.py      synthetic plant records + narrative docs (SCALE=N to grow it)
 scripts/ingest.py                  Level 1 ingestion CLI
+scripts/embed.py                   cache passage embeddings once (instant startup after)
 scripts/build_graph.py             Level 2 graph build CLI
-eval/                              extraction benchmark (fixtures + labels + scorer)
-tests/                             regression tests (Level 0 deps only)
-data/corpus/                       the document corpus (by type)
+run.py                             one-command setup + launch
+eval/                              benchmarks (extraction, copilot, compliance, rca, lessons, faithfulness)
+tests/                             regression tests (Level 0 deps only; local models stubbed)
+data/corpus/                       the document corpus (by type; includes real CSB/OSHA references)
 ```
 
 Next: **Level 3 — the GraphRAG copilot.**

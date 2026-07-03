@@ -161,37 +161,59 @@ narrative.
 
 ## 7. The tools, trimmed to what actually earns its place
 
-We deliberately keep the stack small — every additional framework is something that can
-break during a live demo, so each one has to justify itself:
+We deliberately kept the stack smaller than originally planned — every framework
+evaluated during the build and cut in favour of plain, explainable code is listed
+below alongside what shipped, because the cuts are as much a design decision as
+the inclusions:
 
 | Tool | What it does | Why it's in (not just "why not") |
 |---|---|---|
 | **Docling** | Reads PDFs, Word, spreadsheets, scanned pages into clean text/tables | Saves weeks of layout-parsing code |
-| **Vision-capable LLM (Gemini vision / local vision model)** | Reads P&IDs and scanned drawings directly as images, extracting tags/lines/instrument numbers | Avoids building a bespoke CV pipeline (symbol/line detection) that would eat most of the runway for marginal gain — a hackathon-realistic way to satisfy the "computer vision" ask |
-| **Neo4j** | Stores facts as nodes/edges, asset-centric; native vector index doubles as the meaning-search store | One database for both graph and vector search keeps the stack small |
-| **Local embeddings + reranker (BGE)** | Meaning-matching ("pump is leaking" ↔ "seal failure on P-101") | Free, on-device, no API cost or latency |
-| **LlamaIndex** (retrieval layer only) | Chunking, retrieval orchestration | Used narrowly — the graph-traversal reasoning stays as our own explainable code, not hidden inside a framework, so we can show *how* an answer was built in the demo |
-| **A small agent framework (used only in Level 4)** | Runs the compliance/RCA/lessons-learned agents as an explicit, inspectable multi-step plan with a visible reasoning trace | Kept out of Levels 1–3 entirely — plain functions are simpler and less to debug where multi-step planning isn't actually needed |
-| **RAGAS-style automated scoring** | Scores answer quality against the benchmark set with a repeatable rubric | Gives real numbers for the scorecard instead of subjective judgment |
-| **FastAPI** | Backend server | Standard, fast, typed |
-| **Next.js** | Mobile-first, role-aware chat UI + live scorecard dashboard | One codebase for phone and desktop |
+| **Vision-capable LLM (cloud or local via Ollama)** | Reads P&IDs and scanned drawings directly as images, extracting tags/lines/instrument numbers | Avoids building a bespoke CV pipeline (symbol/line detection) that would eat most of the runway for marginal gain — a pragmatic way to satisfy the "computer vision" ask, and Ollama's Qwen-VL/GLM-OCR make it fully offline-capable too |
+| **Local embeddings + reranker (BGE, via `sentence-transformers`)** | Local hybrid passage search: BM25 keyword + dense cosine, fused by Reciprocal Rank Fusion, then cross-encoder reranked | Free, on-device, zero API latency or cost — and this is the retrieval engine judges see in the demo, not a placeholder for one |
+| **Neo4j** | Stores facts as nodes/edges, asset-centric; can also host a vector index | Optional for the demo — the copilot and every agent run identically on an in-memory `GraphModel`, so the whole product works with zero database running |
+| **FastAPI** | Backend server + the single-file mobile UI's API surface | Standard, fast, typed, no framework lock-in |
 | **A time-series table + readings adapter** | Holds recent equipment readings (temperature, vibration, pressure); a replayed data file feeds it for the demo, real OPC-UA/MQTT plugs into the same slot | Makes "real-time operating conditions" concrete without needing a real plant feed |
 | **A plain-code compliance rule checker** | Executes the parsed rule against actual dates/records/readings and returns a hard met/gap/unknown | The pass/fail decision is never left to a model's guess — this is the credibility anchor for the compliance agent |
+| **A local, embedding-based faithfulness scorer** | Checks whether an answer's claims are grounded in the cited evidence | Gives the scorecard a real "answer quality" number with **zero LLM-judge calls** — the evaluation doesn't depend on the same API the product doesn't depend on |
 
-Dropped from the original plan on purpose: a dedicated structured-output wrapper library
-(native structured/JSON output from the chosen model is sufficient) and a full agent
-orchestration framework for anything before Level 4 (unnecessary complexity where a
-straight pipeline does the job). Fewer moving parts means fewer things that can fail live.
+**Cut from the original plan, on purpose, once the trade-off was concrete:**
+- **LlamaIndex** — retrieval stayed as our own ~150 lines of hybrid-search code
+  (`retrieval/knowledge.py`). Fewer abstraction layers means the demo can show
+  *exactly* how an answer was assembled, and it's the difference between
+  depending on a framework's embedding/reranker wiring and owning it outright.
+- **A generic agent-orchestration framework** (e.g. LangGraph) — the three
+  Level 4 agents (`agents/compliance.py`, `agents/rca.py`, `agents/lessons.py`)
+  are each a short, readable Python function. None of them needed multi-step
+  planning or tool-calling loops; adding a framework would have been
+  complexity with no corresponding capability.
+- **RAGAS** — its faithfulness score is LLM-judge-based, which would have made
+  *evaluating* the product depend on the same cloud call the product is
+  designed to minimise. Replaced with the local embedding-based scorer above.
+- **Next.js** — the UI is one dependency-free HTML/CSS/JS file
+  (`web/index.html`) served as a static mount by FastAPI. Lower demo risk (no
+  build step, nothing to fail to compile) and it's still mobile-first with
+  voice input; a Next.js rewrite remains a drop-in upgrade if ever needed at
+  a larger scale.
 
-### Two stores, each doing one job
+### Local-first retrieval, Neo4j optional
 
-- **Meaning store (vector index inside Neo4j):** fast retrieval of the right passage by
-  semantic similarity.
-- **Connections store (Neo4j graph):** facts and how they link, asset-centric, reasoning
-  across departments.
+The original plan's "two stores" (a vector index and a graph database) are both
+real in production, but the demo doesn't require either running:
 
-The copilot uses both together — meaning-search finds candidate passages, the graph
-supplies the relationships that make an answer *explainable*, not just plausible.
+- **Meaning search** — BM25 + local embeddings + local reranker, entirely
+  in-process. Neo4j's vector index is available for scale but not on the
+  critical path.
+- **Connections** — the in-memory `GraphModel` (`graph/model.py`) is what the
+  copilot and every Level 4 agent actually query. `stores/graph_writer.py`
+  persists the same model into Neo4j when it's reachable, for querying the
+  graph directly (Cypher) at larger scale — but nothing in the demo path
+  requires the database to be up.
+
+The copilot uses graph traversal and hybrid search together — search finds
+candidate passages, the graph supplies the relationships that make an answer
+*explainable*, not just plausible — and it does so identically whether or not
+Neo4j, or even a cloud LLM, is reachable.
 
 ---
 
@@ -380,9 +402,16 @@ investigation reports, OISD standards, OSHA PSM, OEM manuals), not synthetic-onl
   criteria get satisfied in real time.
 - It runs **fully offline on local hardware**, which is a genuine deployment requirement
   for the regulated Indian plants this problem statement is written for — not a budget
-  trick, a business fit.
+  trick, a business fit. This isn't just the LLM behind a switch: **retrieval itself
+  is local hybrid search** (BM25 + on-device embeddings + a local reranker), every agent
+  verdict is plain code, and the copilot composes a fully readable, cited answer with
+  zero LLM calls if none is configured. A judge can pull the network cable and the
+  product keeps working — few "AI platform" entries can make that claim honestly.
 - The whole engine swaps industries on one config file, proven live — Scalability is
   demonstrated, not claimed.
+- Even the **evaluation** doesn't depend on a cloud API: the answer-faithfulness metric
+  is computed by a local embedding model, so every number on the scorecard is
+  reproducible with no internet connection at all.
 
 ---
 
@@ -392,4 +421,7 @@ The "brain" sits behind a simple switch — swap the model provider, the industr
 vocabulary, or the QMS connection without rewriting anything else. Every new capability
 gets added at the layer that already owns that kind of decision (code for deterministic
 facts, the model for prose, the graph for connections) rather than reaching for the model
-to do something a few lines of code can do more reliably.
+to do something a few lines of code can do more reliably. And the switch always defaults
+toward the option that needs less: local before cloud, code before a model call, cached
+before recomputed — an API is something the product can use to get better, never something
+it requires to be correct.
