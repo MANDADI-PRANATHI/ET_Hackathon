@@ -9,8 +9,10 @@ Run with:  make synth   (or:  python scripts/generate_synthetic.py)
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import datetime
+import os
 import pathlib
 import random
 
@@ -253,8 +255,200 @@ def readings() -> None:
            ["asset_tag", "parameter", "timestamp", "value", "unit"], rows)
 
 
+# =============================================================================
+# BULK DATA — a large, realistic plant layered on top of the canonical assets.
+# The canonical records above are byte-identical (so the benchmarks stay valid);
+# everything below is appended volume so we can stress-test at scale.
+# =============================================================================
+
+MANUFACTURERS = ["KSB", "L&T", "Alfa Laval", "Siemens", "Anderson Greenwood",
+                 "Emerson", "Flowserve", "Sulzer", "Kirloskar", "BHEL", "Thermax"]
+UNITS = ["CDU-1", "CDU-2", "VDU-1", "FCC-1", "HDT-1", "SRU-1", "Utilities", "Tankage"]
+REGS = ["OISD-STD-105", "OISD-STD-106", "OISD-STD-116", "29 CFR 1910.119",
+        "IS 2062", "IS 4736"]
+FAILURES = ["seal failure", "bearing failure", "corrosion", "fatigue crack",
+            "overpressure", "high vibration", "gasket leak", "shaft misalignment",
+            "tube fouling", "cavitation"]
+FINDINGS = ["Inspection overdue", "Procedure not followed", "Out-of-spec reading",
+            "Missing record", "Calibration lapsed", "Guard missing", "Corrosion noted"]
+ACTIONS_BULK = ["Seal replacement", "Bearing inspection", "Vibration check",
+                "Gasket replacement", "Lubrication", "Alignment", "Calibration",
+                "Overhaul", "Cleaning", "Valve pop-test"]
+PEOPLE_BULK = ["R. Kumar", "S. Patel", "A. Sharma", "M. Iyer", "P. Nair", "K. Rao",
+               "D. Mehta", "V. Singh", "N. Reddy", "T. Bose", "G. Menon", "H. Shah",
+               "J. Pillai", "L. Verma", "B. Das", "C. Joshi"]
+# (class, tag-prefixes)
+CLASS_PREFIX = {
+    "Pump": ["P", "GA", "PA"], "Valve": ["PSV", "XV", "FV", "PCV", "TV"],
+    "Vessel": ["V", "D"], "HeatExchanger": ["E"], "Compressor": ["K", "C"],
+    "Instrument": ["FT", "PT", "TT", "LT", "FIC", "PIC"], "Tank": ["TK"],
+    "Column": ["T"],
+}
+
+
+def _append(path: pathlib.Path, rows) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerows(rows)
+    print(f"  +{len(rows)} rows -> {path.relative_to(ROOT)}")
+
+
+def _build_assets(n: int):
+    used = {a[0] for a in ASSETS}
+    out = []
+    while len(out) < n:
+        cls = random.choice(list(CLASS_PREFIX))
+        tag = (f"{random.choice(CLASS_PREFIX[cls])}-{random.randint(100, 999)}"
+               f"{random.choice(['', '', '', 'A', 'B', 'C'])}")
+        if tag in used:
+            continue
+        used.add(tag)
+        out.append((tag, f"{cls} {tag}", cls, random.choice(MANUFACTURERS),
+                    random.choice(UNITS), random.choice(["High", "Medium", "Low"])))
+    return out
+
+
+def _bulk_narrative(kind: str, idx: int, assets) -> None:
+    a = random.choice(assets)
+    tag, _n, _c, _m, unit, _cr = a
+    reg = random.choice(REGS)
+    who = random.choice(PEOPLE_BULK)
+    fail = random.choice(FAILURES)
+    d = TODAY - datetime.timedelta(days=random.randint(10, 900))
+    if kind == "incident":
+        _write_text(f"incidents/INC-{2025}-{500+idx}_{tag}.txt", f"""
+INCIDENT INVESTIGATION REPORT
+Reference: INC-2025-{500+idx}
+Date: {d.isoformat()}
+Unit: {unit}
+
+SUMMARY
+On {d.isoformat()}, {tag} experienced {fail} during normal operation. The event
+was contained and there were no injuries.
+
+ROOT CAUSE
+Investigation attributed the {fail} on {tag} to deferred maintenance and a
+missed inspection. Relief protection remained within the limits of {reg}.
+
+RECOMMENDATIONS
+1. Review the maintenance interval for {tag}.
+2. Verify related protective devices per {reg}.
+Investigator: {who}
+""")
+    elif kind == "email":
+        _write_text(f"emails/RE_{tag}_{idx}.eml", f"""From: {who} <{who.split()[-1].lower()}@refinery.example>
+To: Operations <ops@refinery.example>
+Subject: RE: {tag} follow-up on {fail}
+Date: {d.strftime('%a, %d %b %Y')} 10:00:00 +0530
+
+Team,
+
+Flagging {fail} observed on {tag} in {unit}. Per {reg} we should schedule a
+check. This may relate to the recurring issues we have seen on similar equipment.
+
+Regards,
+{who}
+""")
+    else:  # sop
+        setp = random.choice([6, 8, 10, 12, 14, 16])
+        _write_text(f"procedures/SOP-{unit}-{200+idx}_{tag}.txt", f"""
+STANDARD OPERATING PROCEDURE
+SOP-{unit}-{200+idx}: Operation of {tag}
+Revision: {random.randint(1,5)}   Effective: {d.isoformat()}
+
+PURPOSE
+This procedure governs safe operation of {tag} in unit {unit}.
+
+LIMITS
+Maintain within design limits. Overpressure protection is set at {setp} barg in
+accordance with {reg}. Do not bypass protective devices while in service.
+""")
+
+
+def bulk(scale: int, assets_all) -> None:
+    print(f"\nGenerating BULK data (scale={scale})...")
+    n_assets = scale * 8
+    extra = _build_assets(n_assets)
+    assets_all.extend(extra)
+    _append(CORPUS / "project_files" / "asset_register.csv",
+            [(t, n, c, m, u, cr) for (t, n, c, m, u, cr) in extra])
+
+    # work orders (bulk) across ALL assets
+    n_wo = scale * 80
+    tags = [a[0] for a in assets_all]
+    wo = []
+    for i in range(n_wo):
+        d = TODAY - datetime.timedelta(days=random.randint(1, 1400))
+        wo.append((f"WO-{20000+i}", random.choice(tags), random.choice(ACTIONS_BULK),
+                   d.isoformat(), random.choice(["Completed", "Open", "Closed", "Closed"]),
+                   random.choice(PEOPLE_BULK)))
+    _append(CORPUS / "work_orders" / "work_orders.csv", wo)
+
+    # one inspection per extra asset (valves 6-mo cycle -> some naturally overdue)
+    insp = []
+    for i, (t, _n, c, _m, _u, _cr) in enumerate(extra):
+        d = TODAY - datetime.timedelta(days=random.randint(15, 500))
+        insp.append((f"INSP-{20000+i}", t, "Statutory" if c == "Valve" else "Routine",
+                     d.isoformat(), random.choice(["Pass", "Pass", "Observation", "Fail"])))
+    _append(CORPUS / "inspections" / "inspections.csv", insp)
+
+    # permits (bulk)
+    n_permit = scale * 15
+    ptypes = ["Hot Work", "Confined Space", "Working at Height", "Cold Work", "Electrical"]
+    permits_rows = []
+    for i in range(n_permit):
+        d = TODAY - datetime.timedelta(days=random.randint(0, 120))
+        permits_rows.append((f"PTW-{20000+i}", random.choice(tags), random.choice(ptypes),
+                             d.isoformat(), random.choice(["Closed", "Active", "Closed"])))
+    _append(CORPUS / "permits" / "permits.csv", permits_rows)
+
+    # non-conformances + CAPAs (bulk)
+    n_ncr = scale * 10
+    ncr_rows = []
+    for i in range(n_ncr):
+        d = TODAY - datetime.timedelta(days=random.randint(5, 800))
+        ncr_rows.append((f"NCR-{20000+i}", random.choice(tags), random.choice(FINDINGS),
+                        d.isoformat(), f"CAPA-{20000+i}", random.choice(["Open", "Closed"])))
+    _append(CORPUS / "quality_records" / "nonconformances.csv", ncr_rows)
+
+    # narrative documents (bulk text files -> prose extraction + cross-links)
+    n_inc, n_email, n_sop = min(scale, 60), min(scale, 70), min(scale // 2, 40)
+    for i in range(n_inc):
+        _bulk_narrative("incident", i, extra)
+    for i in range(n_email):
+        _bulk_narrative("email", i, extra)
+    for i in range(n_sop):
+        _bulk_narrative("sop", i, extra)
+    print(f"  +{n_inc+n_email+n_sop} narrative documents")
+
+    # readings for a subset of assets (some rising -> RCA/warnings signal)
+    n_read = min(scale // 2, 40)
+    rd = []
+    for a in random.sample(extra, min(n_read, len(extra))):
+        rising = random.random() < 0.35
+        base = random.uniform(2.0, 3.5)
+        for wk in range(11):
+            ts = datetime.date(2026, 3, 12) + datetime.timedelta(weeks=wk)
+            val = base + (wk * random.uniform(0.3, 0.6) if rising else random.uniform(-0.1, 0.1))
+            rd.append((a[0], "vibration", ts.isoformat(), round(max(0.5, val), 2), "mm/s"))
+    _append(ROOT / "data" / "readings" / "readings.csv", rd)
+
+    print(f"\nTOTAL assets: {len(assets_all)}  ·  bulk work orders: {n_wo}  ·  "
+          f"permits: {n_permit}  ·  NCRs: {n_ncr}")
+
+
+def _get_scale() -> int:
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.add_argument("--scale", type=int, default=None)
+    args, _ = ap.parse_known_args()
+    if args.scale is not None:
+        return max(0, args.scale)
+    return max(0, int(os.environ.get("SCALE", "50")))
+
+
 def main() -> None:
-    print("Generating synthetic plant records...")
+    scale = _get_scale()
+    print("Generating synthetic plant records (canonical demo assets)...")
     asset_register()
     work_orders()
     inspections()
@@ -262,9 +456,11 @@ def main() -> None:
     nonconformances()
     narrative_documents()
     readings()
+    if scale > 0:
+        bulk(scale, list(ASSETS))
     print(
-        "\nDone. Add real public PDFs to the remaining corpus folders "
-        "(see data/corpus/SOURCES.md)."
+        "\nDone. (Set SCALE=0 for canonical-only, or SCALE=200 for a huge plant.)"
+        "\nAdd real public PDFs to the corpus folders too (see data/corpus/SOURCES.md)."
     )
 
 

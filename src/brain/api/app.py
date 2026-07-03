@@ -25,7 +25,7 @@ from pydantic import BaseModel
 
 from brain.copilot.answer import Copilot
 from brain.copilot.roles import DEFAULT_ROLE, ROLE_FRAMING
-from brain.graph.export import graph_json
+from brain.graph.export import asset_list, asset_subgraph, graph_json
 from brain.ontology import load_ontology
 from brain.retrieval.knowledge import KnowledgeBase
 
@@ -101,8 +101,16 @@ def create_app() -> FastAPI:
             "citations": [asdict(c) for c in answer.citations],
         }
 
+    @app.get("/assets")
+    def assets() -> dict:
+        return asset_list(state.kb.g)
+
     @app.get("/graph")
-    def graph(include_chunks: bool = False) -> dict:
+    def graph(asset: str = "", include_chunks: bool = False, limit: int = 28) -> dict:
+        # Per-asset neighbourhood (scales to a huge graph); full graph only when
+        # no asset is given (used by tests / small datasets).
+        if asset:
+            return asset_subgraph(state.kb.g, asset, limit=limit)
         return graph_json(state.kb.g, include_chunks=include_chunks)
 
     @app.get("/scorecard")

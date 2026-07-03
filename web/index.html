@@ -186,6 +186,28 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   font-family:var(--font-mono);color:hsl(var(--muted-foreground))}
 .leg i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
 
+/* how it works */
+.statrow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.stat{background:hsl(var(--surface));border:1px solid hsl(var(--border));border-radius:9px;padding:10px 15px}
+.stat .n{font-family:var(--font-mono);font-weight:600;font-size:19px;color:hsl(var(--primary))}
+.stat .l{font-size:11px;color:hsl(var(--muted-foreground));margin-top:2px}
+.pipe{display:flex;flex-direction:column}
+.pstep{display:flex;gap:14px;align-items:flex-start;padding:12px 0;position:relative}
+.pnum{width:32px;height:32px;border-radius:9px;background:hsl(var(--accent));color:hsl(var(--primary));
+  font-family:var(--font-display);font-weight:700;display:grid;place-items:center;flex:none;z-index:1}
+.pstep:not(:last-child)::before{content:"";position:absolute;left:15px;top:44px;bottom:-12px;
+  width:2px;background:hsl(var(--border))}
+.pbody h4{font-family:var(--font-display);font-size:14.5px;margin:3px 0 4px;display:flex;
+  align-items:center;flex-wrap:wrap}
+.pbody p{margin:0;font-size:13px;color:hsl(var(--muted-foreground));line-height:1.5}
+.ptag{font-family:var(--font-mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;
+  background:hsl(var(--muted));color:hsl(var(--foreground));margin-left:8px;font-weight:600}
+.ptag.ai{background:hsl(var(--accent));color:hsl(var(--primary))}
+.ptag.code{background:hsl(var(--success-bg));color:hsl(var(--success))}
+.callout{margin-top:16px;padding:14px 16px;border-radius:10px;background:hsl(var(--accent));
+  border:1px solid hsl(var(--primary)/.22);font-size:13.5px;line-height:1.55}
+.callout b{color:hsl(var(--primary))}
+
 /* ask bar */
 .askbar{position:fixed;bottom:0;left:0;right:0;z-index:20;
   background:hsl(var(--card)/.9);backdrop-filter:blur(10px);
@@ -231,6 +253,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
     <button class="tab" data-v="compliance">Compliance</button>
     <button class="tab" data-v="warnings">Warnings</button>
     <button class="tab" data-v="score">Scorecard</button>
+    <button class="tab" data-v="how">How it works</button>
   </div>
 </div>
 
@@ -279,6 +302,41 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   <div class="view" id="view-warnings"><div id="warnBox"><div class="card"><div class="empty">Loading…</div></div></div></div>
   <!-- SCORECARD -->
   <div class="view" id="view-score"><div id="scoreBox"><div class="card"><div class="empty">Loading…</div></div></div></div>
+
+  <!-- HOW IT WORKS -->
+  <div class="view" id="view-how">
+    <div class="card">
+      <h2>How it works — it's a pipeline, not an API wrapper</h2>
+      <div class="desc">Most tools "chat over your PDFs". Sutradhar connects knowledge into a graph
+        and lets deterministic code make the decisions a language model shouldn't.</div>
+      <div class="statrow" id="howstats"></div>
+      <div class="pipe">
+        <div class="pstep"><div class="pnum">1</div><div class="pbody">
+          <h4>Ingest <span class="ptag code">mostly code</span></h4>
+          <p>Read every document type. Tables are read by code, tags/dates/reg-refs by regex,
+             and only prose by AI — every fact stamped with its <b>source</b> and a <b>confidence</b>.</p></div></div>
+        <div class="pstep"><div class="pnum">2</div><div class="pbody">
+          <h4>Connect <span class="ptag">knowledge graph</span></h4>
+          <p>Facts merge into one <b>asset-centric graph</b> — every pump, valve and vessel becomes a hub
+             with its history, documents and rules linked to it. Not a pile of text.</p></div></div>
+        <div class="pstep"><div class="pnum">3</div><div class="pbody">
+          <h4>Retrieve <span class="ptag">GraphRAG</span></h4>
+          <p>A question walks the <b>graph</b> (the asset + its neighbours) <i>and</i> does meaning-search,
+             then combines both — which is what lets a maintenance question be answered by a safety document.</p></div></div>
+        <div class="pstep"><div class="pnum">4</div><div class="pbody">
+          <h4>Decide <span class="ptag code">code decides</span></h4>
+          <p>The agents let <b>plain code</b> make the verdict — "239 days &gt; 182 → GAP", a rising trend, a
+             recurring pattern. The model never guesses pass/fail, so an auditor can trust it.</p></div></div>
+        <div class="pstep"><div class="pnum">5</div><div class="pbody">
+          <h4>Answer <span class="ptag ai">AI narrates</span></h4>
+          <p>Cited, confidence-scored, role-aware. The LLM writes the final paragraph on top of evidence
+             that already stands on its own.</p></div></div>
+      </div>
+      <div class="callout">🧠 <b>The LLM is the narrator, not the brain.</b> Switch it off ("brain offline")
+        and the system still extracts facts, builds the graph, checks compliance, runs RCA, and shows
+        cited evidence — because the intelligence lives in the graph and the rules, not one API call.</div>
+    </div>
+  </div>
 </div>
 
 <div class="askbar" id="askbar">
@@ -304,7 +362,16 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   if(t.dataset.v==="compliance") loadCompliance();
   if(t.dataset.v==="warnings") loadWarnings();
   if(t.dataset.v==="score") loadScore();
+  if(t.dataset.v==="how") loadHow();
 });
+async function loadHow(){
+  let h={}; try{ h=await (await fetch("/health")).json(); }catch(e){}
+  $("#howstats").innerHTML=[
+    [h.assets??"—","assets in the graph"],
+    [h.chunks??"—","searchable passages"],
+    [h.llm_ready?"online":"offline","language model"],
+  ].map(([n,l])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+}
 
 fetch("/health").then(r=>r.json()).then(h=>{
   $("#health").innerHTML =
@@ -356,24 +423,30 @@ if(SR){ const rec=new SR(); rec.lang="en-IN"; rec.interimResults=false;
 
 /* ── graph ── */
 async function loadGraph(){
-  if(!GRAPH){
-    try{ GRAPH=await (await fetch("/graph")).json(); }catch(e){ return; }
-    const sel=$("#assetSel");
-    GRAPH.nodes.filter(n=>n.hub).forEach(n=>{
-      const o=document.createElement("option"); o.value=n.value; o.textContent=n.display||n.value; sel.appendChild(o);
-    });
-    sel.onchange=()=>drawGraph(sel.value);
+  const sel=$("#assetSel");
+  if(!sel.dataset.loaded){
+    try{
+      const d=await (await fetch("/assets")).json();
+      sel.innerHTML=d.assets.map(a=>`<option value="${esc(a.value)}">${esc(a.display)}</option>`).join("");
+      sel.dataset.loaded="1";
+      sel.onchange=()=>drawAsset(sel.value);
+    }catch(e){ return; }
   }
-  if($("#assetSel").value) drawGraph($("#assetSel").value);
+  if(sel.value) drawAsset(sel.value);
+}
+async function drawAsset(asset){
+  $("#graphBox").innerHTML='<div class="empty">Loading…</div>';
+  let d; try{ d=await (await fetch("/graph?asset="+encodeURIComponent(asset)+"&limit=28")).json(); }
+  catch(e){ return; }
+  drawGraph(d, asset);
 }
 const REL_COLORS=["#4f46e5","#0d9488","#c2410c","#9333ea","#0369a1","#b45309","#be123c","#4d7c0f","#0891b2"];
-function drawGraph(asset){
+function drawGraph(data, asset){
   const id="Asset:"+asset;
-  const edges=GRAPH.edges.filter(e=>e.source===id||e.target===id);
   const seen=new Set(), items=[];
-  edges.forEach(e=>{const nid=e.source===id?e.target:e.source;
+  (data.edges||[]).forEach(e=>{const nid=e.source===id?e.target:e.source;
     if(!seen.has(nid)){ seen.add(nid); items.push({nid,type:e.type}); }});
-  const byId=Object.fromEntries(GRAPH.nodes.map(n=>[n.id,n]));
+  const byId=Object.fromEntries((data.nodes||[]).map(n=>[n.id,n]));
   const relTypes=[...new Set(items.map(it=>it.type))];
   const relColor=Object.fromEntries(relTypes.map((t,i)=>[t,REL_COLORS[i%REL_COLORS.length]]));
 
@@ -397,9 +470,11 @@ function drawGraph(asset){
   s+=`<circle class="g-hub" cx="${cx}" cy="${cy}" r="30"/>`;
   s+=`<text class="g-hublbl" x="${cx}" y="${cy+4}" text-anchor="middle">${esc(asset)}</text></svg>`;
   const legend=relTypes.map(t=>`<span class="leg"><i style="background:${relColor[t]}"></i>${esc(t)}</span>`).join("");
+  const total=data.total_connections||N;
+  const cap=(total>N)?` <span style="color:hsl(var(--muted-foreground))">(showing ${N} of ${total})</span>`:"";
   $("#graphBox").innerHTML=`<div style="font-size:12.5px;color:hsl(var(--muted-foreground));margin-bottom:10px">
-      <b class="mono" style="color:hsl(var(--primary))">${N}</b> connections — everything linked to
-      <b class="mono" style="color:hsl(var(--foreground))">${esc(asset)}</b></div>
+      <b class="mono" style="color:hsl(var(--primary))">${total}</b> connections — everything linked to
+      <b class="mono" style="color:hsl(var(--foreground))">${esc(asset)}</b>${cap}</div>
     <div class="legend">${legend}</div>${s}`;
 }
 

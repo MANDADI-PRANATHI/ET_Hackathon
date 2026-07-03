@@ -20,6 +20,16 @@ make test         # 54 automated tests
 make scorecard    # every judged metric, computed live
 ```
 
+**Want to stress-test with a large plant?** The sample size scales:
+```bash
+SCALE=50  python scripts/generate_synthetic.py    # ~400 assets, 4k work orders (default)
+SCALE=200 python scripts/generate_synthetic.py    # a huge plant
+SCALE=0   python scripts/generate_synthetic.py    # canonical demo assets only
+```
+The canonical demo assets (incl. the overdue PSV-110B) are always included, so
+the benchmarks stay valid at any scale. The UI's **"How it works"** tab explains
+the pipeline — why this is a knowledge graph + rule engine, not an API wrapper.
+
 ---
 
 The sections below explain each layer (Level 0 foundation → Level 5) in detail.
