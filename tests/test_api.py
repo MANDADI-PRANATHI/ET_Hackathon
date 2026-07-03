@@ -50,6 +50,10 @@ def client(tmp_path, monkeypatch):
     staging = tmp_path / "staging"
     _build_staging(staging)
     monkeypatch.setenv("STAGING_DIR", str(staging))
+    # Skip loading real transformer models — keeps this suite on Level 0 deps
+    # and fast; the local-model code paths are covered by tests/test_offline.py
+    # with stubs, and can be exercised for real via `make api`.
+    monkeypatch.setenv("SUTRADHAR_SKIP_LOCAL_MODELS", "1")
     import brain.api.app as app_module
     importlib.reload(app_module)          # re-read STAGING_DIR
     from fastapi.testclient import TestClient
@@ -79,7 +83,7 @@ def test_compliance_flags_gap(client):
 def test_graph_and_scorecard_and_warnings(client):
     g = client.get("/graph").json()
     assert any(n["hub"] for n in g["nodes"])
-    assert len(client.get("/scorecard").json()) == 7
+    assert len(client.get("/scorecard").json()) == 8
     assert "warnings" in client.get("/warnings").json()
 
 

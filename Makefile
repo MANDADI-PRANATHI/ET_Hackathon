@@ -40,6 +40,9 @@ ingest-structured: ## Level 1 without AI/embeddings (runs with only Level 0 deps
 build-graph: ## Level 2: load staged facts into Neo4j (merge duplicates, validate links)
 	python scripts/build_graph.py
 
+embed:     ## cache passage embeddings for instant semantic search (one-time cost)
+	python scripts/embed.py
+
 install-l3: ## install Level 3 dependencies (FastAPI + uvicorn)
 	python -m pip install -r requirements-l3.txt
 
@@ -70,5 +73,5 @@ test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
 .PHONY: demo up down logs install install-l1 install-l3 init verify synth ingest \
-        ingest-structured build-graph copilot api compliance rca lessons \
+        ingest-structured build-graph embed copilot api compliance rca lessons \
         scorecard eval test

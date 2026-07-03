@@ -10,7 +10,13 @@ The answer is built, not guessed:
   - framing is role-aware and personal data is redacted for roles not cleared.
 
 The LLM is injected (any `.generate(prompt, system)`), so this is testable with a
-stub and swaps providers for free.
+stub and swaps providers for free. **It is also optional.** When no cloud/local
+LLM is configured (or a call fails), the copilot falls back to a genuinely
+readable **local extractive answer** — the same cited evidence, organised into a
+role-aware brief by deterministic code, not a "sorry, no answer" message. This
+means the product's core value (finding the right facts, connecting them across
+departments, scoring confidence) never depends on an API being reachable; the
+LLM only adds a polished narrative on top when it's available.
 """
 from __future__ import annotations
 
@@ -53,6 +59,17 @@ class Answer:
     assets: List[str] = field(default_factory=list)
     signals: dict = field(default_factory=dict)
     source_doc_types: List[str] = field(default_factory=list)
+    mode: str = "generative"          # "generative" (LLM) | "extractive" (local, no LLM)
+    retrieval_method: str = "keyword"  # keyword | dense | hybrid(+rerank)
+
+
+_ROLE_OPENERS = {
+    "technician": "Here's what the records show, in short:",
+    "engineer": "Based on the linked records and evidence:",
+    "safety_officer": "From a safety and compliance standpoint, the records show:",
+    "auditor": "The following evidence directly supports this:",
+    "operator": "Current status per the records:",
+}
 
 
 def _redact(text: str, names: List[str]) -> str:
@@ -68,11 +85,12 @@ def _linkage_score(n_graph_facts: int) -> float:
 
 
 class Copilot:
-    def __init__(self, kb: KnowledgeBase, llm, embedder=None,
+    def __init__(self, kb: KnowledgeBase, llm, embedder=None, reranker=None,
                  max_graph: int = 12, max_passages: int = 5):
         self.kb = kb
         self.llm = llm
         self.embedder = embedder
+        self.reranker = reranker
         self.max_graph = max_graph
         self.max_passages = max_passages
         self._person_names = [
@@ -114,28 +132,51 @@ class Copilot:
                 "retrieval": round(retrieval, 3), "agreement": round(agreement, 3),
                 "overall": round(score, 3)}
 
+    def _extractive_answer(self, items: List[Evidence], role: str, redact: bool) -> str:
+        """Compose a readable, role-framed answer directly from the evidence —
+        no LLM involved. The strongest facts lead, but citation numbers match
+        the numbering the citation panel already shows."""
+        opener = _ROLE_OPENERS.get(role, "Based on the available records:")
+        ranked = sorted(enumerate(items, start=1), key=lambda t: t[1].confidence, reverse=True)
+        lines = []
+        for i, ev in ranked[:6]:
+            stmt = _redact(ev.statement, self._person_names) if redact else ev.statement
+            lines.append(f"{i}. {stmt} [{i}]")
+        return opener + "\n\n" + "\n".join(lines)
+
     def answer(self, question: str, role: str = DEFAULT_ROLE) -> Answer:
-        r = self.kb.retrieve(question, top_k=self.max_passages, embedder=self.embedder)
+        r = self.kb.retrieve(question, top_k=self.max_passages,
+                             embedder=self.embedder, reranker=self.reranker)
         items = self._select(r)
         context, citations = self._context_block(items, role)
         signals = self._confidence(r, items)
+        redact = not can_see_pii(role)
 
         if not items:
             return Answer(question=question, role=role,
                           text="I don't have any information on that in the "
                                "current document set.",
                           confidence=0.0, confidence_label="Low",
-                          assets=r.assets, signals=signals)
+                          assets=r.assets, signals=signals, mode="extractive",
+                          retrieval_method=r.retrieval_method)
 
-        system = f"{framing(role)}\n\n{_SYSTEM_RULES}"
-        prompt = (f"Question: {question}\n\nContext:\n{context}\n\n"
-                  "Answer the question using the context above, citing sources as [n].")
-        try:
-            text = self.llm.generate(prompt, system=system).strip()
-        except Exception:
-            text = ("Unable to generate a written answer right now, but the cited "
-                    "evidence below is relevant.")
-        if not can_see_pii(role):
+        mode = "generative"
+        if self.llm is not None:
+            system = f"{framing(role)}\n\n{_SYSTEM_RULES}"
+            prompt = (f"Question: {question}\n\nContext:\n{context}\n\n"
+                      "Answer the question using the context above, citing sources as [n].")
+            try:
+                text = self.llm.generate(prompt, system=system).strip()
+                if not text:
+                    raise ValueError("empty response")
+            except Exception:
+                text = self._extractive_answer(items, role, redact)
+                mode = "extractive"
+        else:
+            text = self._extractive_answer(items, role, redact)
+            mode = "extractive"
+
+        if redact:
             text = _redact(text, self._person_names)
 
         return Answer(
@@ -143,4 +184,5 @@ class Copilot:
             confidence=signals["overall"], confidence_label=label(signals["overall"]),
             citations=citations, assets=r.assets, signals=signals,
             source_doc_types=sorted({e.doc_type for e in items if e.doc_type}),
+            mode=mode, retrieval_method=r.retrieval_method,
         )

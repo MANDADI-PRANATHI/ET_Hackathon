@@ -1,12 +1,15 @@
 """Level 3 CLI: ask the copilot a question from the terminal.
 
   make copilot Q="Is PSV-110B overdue for inspection?"
-  python scripts/copilot.py --role auditor --question "..." [--embeddings]
+  python scripts/copilot.py --role auditor --question "..." [--no-semantic]
   python scripts/copilot.py            # interactive
 
-Runs over the merged graph built from data/staging (no Neo4j required). Needs an
-LLM configured (.env) to write the prose answer; without one it still shows the
-cited evidence it retrieved.
+Runs over the merged graph built from data/staging (no Neo4j required). By
+default it loads the local embedder + reranker for hybrid semantic search
+(first run downloads small open models, cached after that — no ongoing API
+calls). A cloud/local LLM is optional and only polishes the final written
+answer; without one, a genuinely readable answer is composed from the cited
+evidence by deterministic code (see copilot/answer.py).
 """
 from __future__ import annotations
 
@@ -32,6 +35,7 @@ def _print(answer) -> None:
         print(f"About assets: {', '.join(answer.assets)}")
     if len(answer.source_doc_types) > 1:
         print(f"Cross-functional: evidence spans {', '.join(answer.source_doc_types)}")
+    print(f"Mode: {answer.mode}  ·  retrieval: {answer.retrieval_method}")
     print("Sources:")
     for c in answer.citations[:8]:
         loc = f" p{c.page}" if c.page else ""
@@ -44,26 +48,34 @@ def main() -> None:
     ap.add_argument("--role", default=DEFAULT_ROLE, choices=sorted(ROLE_FRAMING))
     ap.add_argument("--question", "-q")
     ap.add_argument("--staging", default=str(ROOT / "data" / "staging"))
-    ap.add_argument("--embeddings", action="store_true",
-                    help="use local embeddings for meaning search (else keyword)")
+    ap.add_argument("--no-semantic", action="store_true",
+                    help="skip local embeddings/reranker, use keyword search only")
     args = ap.parse_args()
 
     onto = load_ontology()
-    kb = KnowledgeBase.load(args.staging, onto)
 
-    embedder = None
-    if args.embeddings:
-        from brain.providers.embeddings import LocalEmbedder
-        embedder = LocalEmbedder()
+    embedder = reranker = None
+    if not args.no_semantic:
+        try:
+            from brain.providers.embeddings import LocalEmbedder, LocalReranker
+            print("[note] loading local embedder + reranker (first run downloads "
+                  "small models, then cached — no ongoing API calls)...")
+            embedder = LocalEmbedder()
+            reranker = LocalReranker()
+        except Exception as e:  # noqa: BLE001 - keyword search still works
+            print(f"[note] local semantic search unavailable ({e}); using keyword search.")
+
+    kb = KnowledgeBase.load(args.staging, onto, embedder=embedder)
 
     llm = None
     try:
         from brain.providers.llm import get_llm
         llm = get_llm()
     except Exception as e:  # noqa: BLE001
-        print(f"[note] No LLM configured ({e}). Showing retrieved evidence only.")
+        print(f"[note] No cloud/local LLM configured ({e}). Answers will be composed "
+              f"directly from cited evidence (extractive mode).")
 
-    cop = Copilot(kb, llm, embedder=embedder)
+    cop = Copilot(kb, llm, embedder=embedder, reranker=reranker)
 
     if args.question:
         _print(cop.answer(args.question, role=args.role))
