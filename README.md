@@ -120,6 +120,31 @@ dropping in a new document, re-ingesting, and rebuilding folds it in without
 duplication. (Runs fully without Neo4j: model, metrics, and export are always
 produced; the database load is attempted when reachable.)
 
+## Level 3 — the Ask-Anything Copilot (GraphRAG)
+Answers plain-English questions using the graph **and** meaning-search together,
+with clickable citations, a computed confidence, and role-aware framing.
+
+```bash
+make copilot Q="Is PSV-110B overdue for its statutory inspection?"   # CLI
+make api                                                             # HTTP API (:8000/docs)
+python eval/copilot_bench.py                                         # judged metrics
+```
+
+- **GraphRAG, not plain RAG**: spot the asset → pull its connected facts from the
+  graph → add meaning-matched passages → answer. This is what lets a maintenance
+  question be answered by a safety document (**cross-functional discovery**).
+- **Confidence is computed** from extraction certainty, graph linkage, retrieval
+  match, and multi-document agreement — a weak answer says so.
+- **Every claim is cited** back to a source document (and page where known).
+- **Role-aware** (technician / engineer / safety officer / auditor / operator),
+  with personal data redacted for roles not cleared to see it.
+- Runs over the merged graph from `data/staging` — **no Neo4j required**; works
+  with the local embedder or a keyword fallback, and shows cited evidence even
+  when no writer-LLM is configured.
+
+Current benchmark (synthetic corpus): groundedness **1.0**, cross-functional
+discovery **1.0**, asset-spotting **1.0** across 8 expert questions.
+
 ## Project layout
 ```
 config/ontology/oil_and_gas.yaml   the asset-centric vocabulary (swap to change industry)

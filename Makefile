@@ -37,4 +37,20 @@ ingest-structured: ## Level 1 without AI/embeddings (runs with only Level 0 deps
 build-graph: ## Level 2: load staged facts into Neo4j (merge duplicates, validate links)
 	python scripts/build_graph.py
 
-.PHONY: up down logs install install-l1 init verify synth ingest ingest-structured build-graph
+install-l3: ## install Level 3 dependencies (FastAPI + uvicorn)
+	python -m pip install -r requirements-l3.txt
+
+copilot:   ## Level 3: ask the copilot (make copilot Q="Is PSV-110B overdue?")
+	python scripts/copilot.py --question "$(Q)" --role "$(or $(ROLE),engineer)"
+
+api:       ## Level 3: run the copilot API (http://localhost:8000/docs)
+	uvicorn brain.api.app:app --reload --port 8000
+
+eval:      ## run all benchmarks (extraction accuracy + copilot metrics)
+	python eval/extraction_eval.py && echo "" && python eval/copilot_bench.py
+
+test:      ## run the regression suite (Level 0 deps only)
+	python -m pytest tests/ -q
+
+.PHONY: up down logs install install-l1 install-l3 init verify synth ingest \
+        ingest-structured build-graph copilot api eval test

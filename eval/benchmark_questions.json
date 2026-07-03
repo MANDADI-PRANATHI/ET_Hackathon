@@ -1,0 +1,69 @@
+{
+  "_note": "Expert benchmark questions. origin = the department the question comes from; a cross-functional answer draws evidence from a DIFFERENT department. expect_assets/doc_types/terms drive the offline groundedness check.",
+  "questions": [
+    {
+      "q": "Is PSV-110B overdue for its statutory inspection?",
+      "role": "safety_officer",
+      "origin": "compliance",
+      "expect_assets": ["PSV-110B"],
+      "expect_doc_types": ["InspectionReport"],
+      "expect_terms": ["Statutory", "2025-11-06"]
+    },
+    {
+      "q": "Why did crude feed pump P-101A fail?",
+      "role": "engineer",
+      "origin": "maintenance",
+      "expect_assets": ["P-101A"],
+      "expect_doc_types": ["IncidentReport"],
+      "expect_terms": ["seal", "misalignment"]
+    },
+    {
+      "q": "What maintenance history exists for P-101B?",
+      "role": "engineer",
+      "origin": "maintenance",
+      "expect_assets": ["P-101B"],
+      "expect_doc_types": ["WorkOrder"],
+      "expect_terms": ["Work order"]
+    },
+    {
+      "q": "What overpressure protection covers reflux drum V-204 and at what setpoint?",
+      "role": "operator",
+      "origin": "operations",
+      "expect_assets": ["V-204"],
+      "expect_doc_types": ["SOP"],
+      "expect_terms": ["PSV-110", "12 barg"]
+    },
+    {
+      "q": "Which regulation governs the relief valves and what does it require?",
+      "role": "auditor",
+      "origin": "compliance",
+      "expect_assets": ["PSV-110B"],
+      "expect_doc_types": ["Email", "SOP"],
+      "expect_terms": ["OISD"]
+    },
+    {
+      "q": "Are there any open non-conformances against the safety valves?",
+      "role": "auditor",
+      "origin": "quality",
+      "expect_assets": ["PSV-110B"],
+      "expect_doc_types": ["QualityRecord", "InspectionReport"],
+      "expect_terms": ["inspection"]
+    },
+    {
+      "q": "What is the level control procedure for V-204?",
+      "role": "operator",
+      "origin": "operations",
+      "expect_assets": ["V-204"],
+      "expect_doc_types": ["SOP"],
+      "expect_terms": ["level", "80%"]
+    },
+    {
+      "q": "Has PSV-110B been discussed in relation to the P-101A incident?",
+      "role": "safety_officer",
+      "origin": "safety",
+      "expect_assets": ["PSV-110B", "P-101A"],
+      "expect_doc_types": ["Email", "IncidentReport"],
+      "expect_terms": ["INC-2026-014", "audit"]
+    }
+  ]
+}

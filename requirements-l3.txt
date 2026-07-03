@@ -1,0 +1,5 @@
+# Level 3 — copilot API. Installed on top of Level 1.
+-r requirements-l1.txt
+
+fastapi>=0.110
+uvicorn[standard]>=0.29

@@ -72,6 +72,10 @@ across documents by `(label, value)`; it never needs to know how a fact was foun
 | `graph/metrics.py` | Linkage completeness (asset coverage), orphans, needs-review counts. |
 | `graph/export.py` | Clean asset-centric JSON for the demo graph visualisation. |
 | `stores/graph_writer.py` | Persist the merged graph into Neo4j (lazy, provenance onto elements). |
+| `retrieval/knowledge.py` | GraphRAG KnowledgeBase: spot assets (tag/name/class), graph-neighbourhood evidence, meaning search (embeddings or keyword fallback), combined retrieve. Runs on the in-memory graph — no DB needed. |
+| `copilot/answer.py` | Cited, confidence-scored answers; LLM injected; honest "don't know". |
+| `copilot/roles.py` | Role framing + PII gating (redacts Person for non-cleared roles). |
+| `api/app.py` | FastAPI: /ask, /graph, /roles, /health. KB built once at startup from staging. |
 
 ## Conventions
 - Every module starts with a plain-English docstring explaining *why*.

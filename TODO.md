@@ -11,7 +11,8 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ **Level 0 — Foundation** (infra, ontology, provider switch, schema, synth data, health-check)
 - ✅ **Level 1 — Read & extract** (router, readers, deterministic + AI extraction, chunking, embeddings hook, benchmark, keyword baseline)
 - ✅ **Level 2 — Knowledge graph build** (in-memory merge model, entity resolution, Neo4j writer, metrics, viz export, idempotent re-ingest)
-- 🔄 **Level 3 — GraphRAG copilot** (retrieval, confidence, citations, role-aware, API + mobile UI + voice)
+- 🔄 **Level 3 — GraphRAG copilot** — backend DONE (retrieval, confidence, citations, role-aware, PII gating, API, benchmark); mobile UI + voice PENDING
+- ⏳ **Level 4a — Compliance & QMS agent** — NEXT
 - ⏳ **Level 4a — Compliance & QMS agent** (rule engine, evidence packages, CAPA)
 - ⏳ **Level 4b — Maintenance & RCA agent** (readings adapter, time-series, predictive)
 - ⏳ **Level 4c — Lessons-learned & proactive warnings**
@@ -43,16 +44,27 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ `scripts/build_graph.py` — merge + metrics + export always; Neo4j write degrades gracefully if unavailable. Idempotent re-run = the update path.
 - ✅ Tests `tests/test_level2.py` — 10 passing (25 total).
 
-## 🔄 Level 3 — NEXT (immediate actions)
-1. `brain/retrieval/` — GraphRAG: entity-spot in question → graph hub + neighbours (Neo4j or in-memory model) + meaning-search over chunks (vector index; fall back to keyword when embeddings absent) → combine.
-2. `brain/copilot/` — answer synthesis with citations (SourceRef → clickable), computed confidence (`answer_confidence` blend), role-aware framing, PII gating for Person.
-3. Vector retrieval: Neo4j vector index query; graceful fallback to `search/keyword.py` + local embeddings cosine when Neo4j/embeddings unavailable.
-4. `scripts/copilot.py` (CLI ask) + Makefile `copilot` target; FastAPI `api/` for the UI.
-5. Expert-question benchmark `eval/` (answer quality + time-to-answer vs keyword baseline + cross-functional discovery rate).
-6. Mobile-first Next.js chat + voice input (separate UI task).
-7. Tests: retrieval assembly + confidence + role/PII gating on L0 deps (stub LLM, in-memory graph).
+## Level 3 — backend DONE (detail)
+- ✅ `retrieval/knowledge.py` — GraphRAG KnowledgeBase over in-memory graph: `spot_assets` (tag/name/class-synonym, precise queries stay precise), `asset_facts` (cited graph evidence), `search_passages` (embeddings cosine or keyword fallback), `retrieve` (combined).
+- ✅ `copilot/answer.py` — cited answers, computed confidence (extraction+linkage+retrieval+agreement blend + label), honest "don't know", LLM injected.
+- ✅ `copilot/roles.py` — role framing (technician/engineer/safety_officer/auditor/operator) + PII gating (redacts Person for non-cleared roles, incl. citation snippets).
+- ✅ `scripts/copilot.py` CLI + Makefile `copilot`; `api/app.py` FastAPI (/ask,/graph,/roles,/health) + `install-l3`, `api` targets.
+- ✅ `eval/copilot_bench.py` + `benchmark_questions.json` — groundedness 1.0, cross-functional discovery 1.0, asset-spotting 1.0 (8 questions).
+- ✅ `tests/test_level3.py` — 7 tests (32 total).
 
-📝 Level 3 note: build retrieval on the in-memory `GraphModel` first (works with no DB, testable), then add the Neo4j-backed path behind the same interface.
+## 🔄 Level 3 UI — PENDING (do after Level 4a or alongside Level 5)
+- Mobile-first chat consuming POST /ask; render answer + confidence badge + clickable citations + cross-functional flag.
+- Voice input via Web Speech API (field technicians).
+- Graph visualisation from GET /graph.
+- 📝 Decision: build as a self-contained HTML/JS single-page app served by FastAPI (static) rather than a full Next.js toolchain — mobile-responsive, voice-capable, far less fragile for the demo, and verifiable. Note Next.js as an alternative.
+
+## 🔄 Level 4a — NEXT (immediate actions)
+1. `brain/agents/compliance.py` — AI turns a regulation clause into a checkable RegRequirement (applies_to_class, check_type=interval_days/threshold, ...); a PLAIN-CODE checker evaluates it against graph data (last inspection date vs interval) → met/gap/unknown. The PSV-110B overdue inspection is the planted gap.
+2. Rule model + deterministic evaluator (pure, testable) — do NOT let the LLM decide pass/fail.
+3. Evidence-package generator (audit-ready) + NonConformance + CAPA drafting tied to evidence.
+4. `scripts/compliance.py` + Makefile target; `eval/compliance_eval.py` (gap-detection accuracy vs known gaps).
+5. Wire Regulation→RegRequirement→Asset so OISD-STD-105 stops being an orphan.
+6. Tests on L0 deps (stub LLM for clause parsing; real code for the checker).
 
 ---
 
