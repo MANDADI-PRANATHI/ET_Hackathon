@@ -67,6 +67,7 @@ def main() -> None:
     print("Done.")
     print(f"  documents staged : {counts['documents']}")
     print(f"  files skipped    : {counts['skipped']}")
+    print(f"  files failed     : {counts.get('failed', 0)}")
     print(f"  nodes / edges    : {counts['nodes']} / {counts['edges']}")
     print(f"  searchable chunks: {counts['chunks']}")
     print(f"\nStaged JSON in {staging}. Next: make build-graph (Level 2).")

@@ -110,9 +110,14 @@ def ingest_file(
     llm=None,
     embedder=None,
     vision_fn=None,
+    enable_vision: bool = True,
 ) -> Optional[StagedDoc]:
     rt = route(path, corpus_root)
     if not rt.reader_kind:
+        return None
+    # Drawings need the vision model; skip them when AI/vision is disabled
+    # (e.g. the structured-only path) instead of forcing an API call.
+    if rt.reader_kind == DRAWING and not enable_vision:
         return None
     px = px or from_ontology(onto)
 
@@ -203,9 +208,17 @@ def ingest_corpus(
         from brain.providers.embeddings import LocalEmbedder
         embedder = LocalEmbedder()
 
-    counts = {"documents": 0, "skipped": 0, "nodes": 0, "edges": 0, "chunks": 0}
+    counts = {"documents": 0, "skipped": 0, "failed": 0,
+              "nodes": 0, "edges": 0, "chunks": 0}
+    failures = []
     for path in _iter_files(corpus_root):
-        staged = ingest_file(path, corpus_root, onto, px=px, llm=llm, embedder=embedder)
+        try:
+            staged = ingest_file(path, corpus_root, onto, px=px, llm=llm,
+                                 embedder=embedder, enable_vision=use_ai)
+        except Exception as e:  # noqa: BLE001 - one bad file must not stop the batch
+            counts["failed"] += 1
+            failures.append((str(path), f"{type(e).__name__}: {e}"))
+            continue
         if staged is None:
             counts["skipped"] += 1
             continue
@@ -214,4 +227,10 @@ def ingest_corpus(
         counts["nodes"] += len(staged.nodes)
         counts["edges"] += len(staged.edges)
         counts["chunks"] += len(staged.chunks)
+    if failures:
+        print(f"  [warn] {len(failures)} file(s) could not be read (skipped):")
+        for p, err in failures[:10]:
+            print(f"    - {p}: {err}")
+        if len(failures) > 10:
+            print(f"    ... and {len(failures) - 10} more")
     return counts
