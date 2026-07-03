@@ -14,8 +14,9 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - 🔄 **Level 3 — GraphRAG copilot** — backend DONE (retrieval, confidence, citations, role-aware, PII gating, API, benchmark); mobile UI + voice PENDING
 - ✅ **Level 4a — Compliance & QMS agent** (hybrid rule engine, evidence package, NCR/CAPA drafting, gap-detection benchmark 1.0)
 - ✅ **Level 4b — Maintenance & RCA agent** (readings adapter, trend detection, RCA fusion, predictive rec, optimised schedule; eval 1.0)
-- 🔄 **Level 4c — Lessons-learned & proactive warnings** — NEXT
-- ⏳ **Level 5 — Live scorecard, ontology-swap demo, RBAC, arch diagram, deck, video**
+- ✅ **Level 4c — Lessons-learned & proactive warnings** (recurring patterns + multi-signal warning feed; eval 1.0)
+- 🔄 **Level 5 — scorecard, UI, ontology-swap demo, arch diagram** — NEXT
+- ⏳ **Level 3 UI — mobile chat + voice + graph viz** (fold into Level 5 UI)
 
 ---
 
@@ -73,14 +74,18 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ `tests/test_level4b.py` — 4 tests (42 total).
 - ⚠️ Output strings use ASCII (`->`) to stay safe on Windows consoles; markdown files are utf-8.
 
-## 🔄 Level 4c — NEXT (immediate actions)
-1. `agents/lessons.py` — mine graph history (incidents, near-misses, audit findings, non-conformances) for recurring patterns (same failure mode across assets, repeated finding types, asset families with clustered issues).
-2. Proactive warnings: match a current asset's condition/history against past patterns → push a warning (alert feed) before recurrence. Deterministic pattern-match core + optional LLM phrasing.
-3. `scripts/lessons.py` + Makefile target; `/warnings` API endpoint; `eval/lessons_eval.py`; tests.
+## Level 4c — DONE (detail)
+- ✅ `agents/lessons.py` — `find_patterns` (recurring findings, recurring failure modes, chronic repeated actions, equipment-family clusters) + `generate_warnings` combining compliance gaps + rising trends + recurring findings into a prioritised, de-duplicated feed. Deterministic core, optional LLM phrasing.
+- ✅ `scripts/lessons.py` + Makefile `lessons`; `/warnings` API endpoint; `eval/lessons_eval.py` score 1.0; `tests/test_level4c.py` 5 tests (47 total).
 
-## Then: Level 3 UI + Level 5
-- Self-contained mobile-first HTML/JS UI (served by FastAPI static) hitting /ask,/graph,/compliance,/rca,/warnings; voice via Web Speech API; graph viz.
-- Level 5: unified `scorecard` aggregating every eval JSON (extraction, copilot, compliance, rca, lessons) into one command + a dashboard tile; ontology-swap demo; ARCHITECTURE.md + diagram; deck/demo notes.
+## 🔄 Level 5 — NEXT (immediate actions)
+1. `eval/scorecard.py` — run every benchmark (extraction, copilot, compliance, rca, lessons) and aggregate into ONE JSON + human table. Makefile `scorecard`; `/scorecard` API endpoint.
+2. UI: self-contained mobile-first `web/index.html` (single file, no build) served by FastAPI static — chat (/ask) with confidence badge + clickable citations + cross-functional flag, voice input (Web Speech API), graph viz (/graph), compliance/warnings/scorecard panels.
+3. Ontology-swap demo: a second tiny profile (e.g. manufacturing) + a doc/README note showing one-config-change generality.
+4. `ARCHITECTURE.md` + a diagram (mermaid/ASCII) for the deliverable; demo-script notes.
+5. RBAC polish (role selector already in copilot); optional.
+
+📝 UI decision: single-file HTML/JS served by FastAPI static (mobile-responsive, voice-capable, verifiable) instead of a Next.js toolchain — lower demo risk; Next.js noted as alternative.
 
 ---
 

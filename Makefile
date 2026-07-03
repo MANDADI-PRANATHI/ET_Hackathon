@@ -52,12 +52,16 @@ compliance: ## Level 4a: run the compliance check + evidence package
 rca:       ## Level 4b: root-cause analysis (make rca ASSET=P-101A)
 	python scripts/rca.py --asset "$(or $(ASSET),P-101A)"
 
-eval:      ## run all benchmarks (extraction + copilot + compliance + rca)
+lessons:   ## Level 4c: recurring patterns + proactive warnings
+	python scripts/lessons.py
+
+eval:      ## run all benchmarks (extraction + copilot + compliance + rca + lessons)
 	python eval/extraction_eval.py && echo "" && python eval/copilot_bench.py \
-	  && echo "" && python eval/compliance_eval.py && echo "" && python eval/rca_eval.py
+	  && echo "" && python eval/compliance_eval.py && echo "" && python eval/rca_eval.py \
+	  && echo "" && python eval/lessons_eval.py
 
 test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
 .PHONY: up down logs install install-l1 install-l3 init verify synth ingest \
-        ingest-structured build-graph copilot api compliance rca eval test
+        ingest-structured build-graph copilot api compliance rca lessons eval test

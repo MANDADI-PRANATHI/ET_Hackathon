@@ -180,6 +180,21 @@ python eval/rca_eval.py          # RCA quality check
   (+200%)** before the trip, flags it as the top root cause, and recommends
   inspecting the bearing/seal before failure.
 
+## Level 4c — Lessons-Learned & proactive warnings
+Finds systemic patterns across the plant's history and **pushes warnings before
+problems recur**.
+
+```bash
+make lessons                     # recurring patterns + prioritised warning feed
+python eval/lessons_eval.py      # pattern/warning coverage check
+```
+
+- Mines the graph for **recurring findings**, **repeated failure modes**,
+  **chronic repeated actions**, and **equipment-family clusters**.
+- Fuses those patterns with live signals — **compliance gaps** and **rising
+  trends** — into one prioritised warning feed (e.g. *PSV-110B overdue*,
+  *P-101A vibration climbing*, *"inspection overdue" recurring across assets*).
+
 ## Project layout
 ```
 config/ontology/oil_and_gas.yaml   the asset-centric vocabulary (swap to change industry)

@@ -79,6 +79,7 @@ across documents by `(label, value)`; it never needs to know how a fact was foun
 | `agents/compliance.py` | Hybrid compliance: LLM authors a checkable rule (`parse_clause`), plain code decides MET/GAP/UNKNOWN (`check_requirement`); evidence package + NCR/CAPA drafts. Curated RULESET ships with the profile. |
 | `stores/readings.py` | Readings adapter (ReadingsSource protocol; FileReadingsSource replay) + deterministic trend `analyze`. OPC-UA/MQTT implement the same interface. |
 | `agents/rca.py` | RCA agent: fuse graph history + readings → ranked cited findings, predictive recommendation, optimised schedule. Signals are code; narrative is optional LLM. |
+| `agents/lessons.py` | Lessons-learned: `find_patterns` (recurring findings/failure modes/actions, family clusters) + `generate_warnings` (compliance gaps + trends + recurring findings → prioritised feed). |
 
 ## Conventions
 - Every module starts with a plain-English docstring explaining *why*.

@@ -121,6 +121,23 @@ def create_app() -> FastAPI:
             "report_markdown": report.to_markdown(),
         }
 
+    @app.get("/warnings")
+    def warnings() -> dict:
+        import os as _os
+        from brain.agents.lessons import generate_warnings
+        from brain.stores.readings import FileReadingsSource
+        readings = FileReadingsSource(_os.environ.get("READINGS_FILE",
+                                                       "data/readings/readings.csv"))
+        report = generate_warnings(state.kb.g, readings=readings)
+        return {
+            "generated_on": report.generated_on,
+            "warnings": [{"asset": w.asset, "severity": w.severity,
+                          "message": w.message, "basis": w.basis} for w in report.warnings],
+            "patterns": [{"kind": p.kind, "key": p.key, "count": p.count,
+                          "assets": sorted(set(p.assets))} for p in report.patterns],
+            "report_markdown": report.to_markdown(),
+        }
+
     @app.get("/compliance")
     def compliance() -> dict:
         from brain.agents.compliance import run_compliance
