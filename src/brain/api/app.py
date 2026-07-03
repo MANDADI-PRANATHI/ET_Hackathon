@@ -101,6 +101,26 @@ def create_app() -> FastAPI:
     def graph(include_chunks: bool = False) -> dict:
         return graph_json(state.kb.g, include_chunks=include_chunks)
 
+    @app.get("/rca/{asset}")
+    def rca(asset: str) -> dict:
+        import os as _os
+        from brain.agents.rca import investigate
+        from brain.stores.readings import FileReadingsSource
+        readings = FileReadingsSource(_os.environ.get("READINGS_FILE",
+                                                       "data/readings/readings.csv"))
+        report = investigate(state.kb.g, asset, readings=readings, llm=state.copilot.llm)
+        return {
+            "asset": report.asset, "assessed_on": report.assessed_on,
+            "narrative": report.narrative,
+            "findings": [{"cause": f.cause, "kind": f.kind,
+                          "confidence": f.confidence, "rationale": f.rationale}
+                         for f in report.findings],
+            "trends": [vars(t) for t in report.trends],
+            "recommendations": [vars(r) for r in report.recommendations],
+            "schedule": report.schedule,
+            "report_markdown": report.to_markdown(),
+        }
+
     @app.get("/compliance")
     def compliance() -> dict:
         from brain.agents.compliance import run_compliance

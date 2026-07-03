@@ -13,8 +13,8 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ **Level 2 — Knowledge graph build** (in-memory merge model, entity resolution, Neo4j writer, metrics, viz export, idempotent re-ingest)
 - 🔄 **Level 3 — GraphRAG copilot** — backend DONE (retrieval, confidence, citations, role-aware, PII gating, API, benchmark); mobile UI + voice PENDING
 - ✅ **Level 4a — Compliance & QMS agent** (hybrid rule engine, evidence package, NCR/CAPA drafting, gap-detection benchmark 1.0)
-- 🔄 **Level 4b — Maintenance & RCA agent** (readings adapter, time-series, predictive) — NEXT
-- ⏳ **Level 4c — Lessons-learned & proactive warnings**
+- ✅ **Level 4b — Maintenance & RCA agent** (readings adapter, trend detection, RCA fusion, predictive rec, optimised schedule; eval 1.0)
+- 🔄 **Level 4c — Lessons-learned & proactive warnings** — NEXT
 - ⏳ **Level 5 — Live scorecard, ontology-swap demo, RBAC, arch diagram, deck, video**
 
 ---
@@ -65,11 +65,22 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ⚠️ Threshold checks (parameter vs setpoint) stubbed until Level 4b readings land.
 - ⚠️ Reg→RegRequirement→Asset graph edges not yet written back (report stands alone); optional polish.
 
-## 🔄 Level 4b — NEXT (immediate actions)
-1. `stores/readings.py` — time-series readings adapter (Postgres table; replay from a data file for the demo; OPC-UA/MQTT plug into the same interface). Import-safe/lazy.
-2. `agents/rca.py` — fuse work orders + failure records + inspections + OEM manual + recent readings → root-cause analysis with cited evidence, predictive rec, optimised schedule.
-3. Synthetic readings generator (vibration/temperature trend on P-101A rising before the incident).
-4. `scripts/rca.py` + Makefile target; API endpoint; tests on L0 deps.
+## Level 4b — DONE (detail)
+- ✅ `stores/readings.py` — ReadingsSource protocol + FileReadingsSource (CSV replay) + `analyze` (deterministic trend/rising detection). OPC-UA/MQTT implement the same interface in production.
+- ✅ `agents/rca.py` — fuses graph history (work orders/inspections/failure modes/incidents) + readings; ranked findings (condition/failure_mode/maintenance), predictive recommendation, optimised schedule (statutory interval + criticality PM cadence); LLM narrative optional (template fallback).
+- ✅ Synthetic readings generator (P-101A vibration 2.4→7.2 mm/s rising before the trip; P-101B flat control).
+- ✅ `scripts/rca.py` + Makefile `rca`; `/rca/{asset}` API endpoint; `eval/rca_eval.py` score 1.0.
+- ✅ `tests/test_level4b.py` — 4 tests (42 total).
+- ⚠️ Output strings use ASCII (`->`) to stay safe on Windows consoles; markdown files are utf-8.
+
+## 🔄 Level 4c — NEXT (immediate actions)
+1. `agents/lessons.py` — mine graph history (incidents, near-misses, audit findings, non-conformances) for recurring patterns (same failure mode across assets, repeated finding types, asset families with clustered issues).
+2. Proactive warnings: match a current asset's condition/history against past patterns → push a warning (alert feed) before recurrence. Deterministic pattern-match core + optional LLM phrasing.
+3. `scripts/lessons.py` + Makefile target; `/warnings` API endpoint; `eval/lessons_eval.py`; tests.
+
+## Then: Level 3 UI + Level 5
+- Self-contained mobile-first HTML/JS UI (served by FastAPI static) hitting /ask,/graph,/compliance,/rca,/warnings; voice via Web Speech API; graph viz.
+- Level 5: unified `scorecard` aggregating every eval JSON (extraction, copilot, compliance, rca, lessons) into one command + a dashboard tile; ontology-swap demo; ARCHITECTURE.md + diagram; deck/demo notes.
 
 ---
 

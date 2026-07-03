@@ -11,6 +11,9 @@ data/staging/
 # generated graph artefacts (merged export for the viz)
 data/graph/
 
+# generated operating readings (replayed time-series for the demo)
+data/readings/
+
 # generated evaluation / scorecard output
 eval/results/
 

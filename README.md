@@ -162,6 +162,24 @@ python eval/compliance_eval.py    # gap-detection accuracy (precision/recall/F1)
 - On the synthetic corpus it catches the planted gap — **PSV-110B, 57 days past
   its statutory limit** — and scores **1.0** gap-detection precision/recall/F1.
 
+## Level 4b — Maintenance & RCA agent
+Investigates *why* an asset failed by fusing its history with **recent operating
+conditions**, and connects the dots no single team member can.
+
+```bash
+make rca ASSET=P-101A            # RCA report + predictive recs + optimised schedule
+python eval/rca_eval.py          # RCA quality check
+```
+
+- Pulls work orders, inspections, failure modes and incidents from the graph and
+  joins them with **live readings** through a small adapter — a replayed CSV for
+  the demo; OPC-UA/MQTT plug into the *same* interface in a real plant.
+- **Signals are computed by code** (a rising vibration trend, recent maintenance,
+  an overdue inspection); the LLM only writes the narrative on top.
+- On the synthetic corpus it catches P-101A's vibration climbing **2.4 → 7.2 mm/s
+  (+200%)** before the trip, flags it as the top root cause, and recommends
+  inspecting the bearing/seal before failure.
+
 ## Project layout
 ```
 config/ontology/oil_and_gas.yaml   the asset-centric vocabulary (swap to change industry)

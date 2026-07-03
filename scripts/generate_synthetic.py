@@ -229,6 +229,30 @@ relief valve while the drum is in service.
     )
 
 
+def readings() -> None:
+    """Weekly operating readings. P-101A vibration trends UP for weeks before the
+    2026-05-18 seal-failure incident (so the RCA agent can connect the dots);
+    other assets stay flat as a control."""
+    rows = []
+    # P-101A vibration rising 2.4 -> 7.2 mm/s over 10 weeks up to the trip.
+    start = datetime.date(2026, 3, 12)
+    vib = 2.4
+    for wk in range(11):
+        ts = start + datetime.timedelta(weeks=wk)
+        rows.append(("P-101A", "vibration", ts.isoformat(), round(vib, 2), "mm/s"))
+        rows.append(("P-101A", "bearing_temp", ts.isoformat(),
+                     round(58 + wk * 1.3, 1), "degC"))
+        vib += 0.48
+    # P-101B (standby) stays healthy/flat.
+    for wk in range(11):
+        ts = start + datetime.timedelta(weeks=wk)
+        rows.append(("P-101B", "vibration", ts.isoformat(),
+                     round(2.3 + (wk % 3) * 0.1, 2), "mm/s"))
+    READINGS = ROOT / "data" / "readings"
+    _write(READINGS / "readings.csv",
+           ["asset_tag", "parameter", "timestamp", "value", "unit"], rows)
+
+
 def main() -> None:
     print("Generating synthetic plant records...")
     asset_register()
@@ -237,6 +261,7 @@ def main() -> None:
     permits()
     nonconformances()
     narrative_documents()
+    readings()
     print(
         "\nDone. Add real public PDFs to the remaining corpus folders "
         "(see data/corpus/SOURCES.md)."
