@@ -12,9 +12,8 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ **Level 1 — Read & extract** (router, readers, deterministic + AI extraction, chunking, embeddings hook, benchmark, keyword baseline)
 - ✅ **Level 2 — Knowledge graph build** (in-memory merge model, entity resolution, Neo4j writer, metrics, viz export, idempotent re-ingest)
 - 🔄 **Level 3 — GraphRAG copilot** — backend DONE (retrieval, confidence, citations, role-aware, PII gating, API, benchmark); mobile UI + voice PENDING
-- ⏳ **Level 4a — Compliance & QMS agent** — NEXT
-- ⏳ **Level 4a — Compliance & QMS agent** (rule engine, evidence packages, CAPA)
-- ⏳ **Level 4b — Maintenance & RCA agent** (readings adapter, time-series, predictive)
+- ✅ **Level 4a — Compliance & QMS agent** (hybrid rule engine, evidence package, NCR/CAPA drafting, gap-detection benchmark 1.0)
+- 🔄 **Level 4b — Maintenance & RCA agent** (readings adapter, time-series, predictive) — NEXT
 - ⏳ **Level 4c — Lessons-learned & proactive warnings**
 - ⏳ **Level 5 — Live scorecard, ontology-swap demo, RBAC, arch diagram, deck, video**
 
@@ -58,13 +57,19 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - Graph visualisation from GET /graph.
 - 📝 Decision: build as a self-contained HTML/JS single-page app served by FastAPI (static) rather than a full Next.js toolchain — mobile-responsive, voice-capable, far less fragile for the demo, and verifiable. Note Next.js as an alternative.
 
-## 🔄 Level 4a — NEXT (immediate actions)
-1. `brain/agents/compliance.py` — AI turns a regulation clause into a checkable RegRequirement (applies_to_class, check_type=interval_days/threshold, ...); a PLAIN-CODE checker evaluates it against graph data (last inspection date vs interval) → met/gap/unknown. The PSV-110B overdue inspection is the planted gap.
-2. Rule model + deterministic evaluator (pure, testable) — do NOT let the LLM decide pass/fail.
-3. Evidence-package generator (audit-ready) + NonConformance + CAPA drafting tied to evidence.
-4. `scripts/compliance.py` + Makefile target; `eval/compliance_eval.py` (gap-detection accuracy vs known gaps).
-5. Wire Regulation→RegRequirement→Asset so OISD-STD-105 stops being an orphan.
-6. Tests on L0 deps (stub LLM for clause parsing; real code for the checker).
+## Level 4a — DONE (detail)
+- ✅ `agents/compliance.py` — RegRequirement model, curated RULESET (OISD-STD-105 valve 182d / vessel 365d), plain-code `check_requirement` (MET/GAP/UNKNOWN by exact date math — LLM never decides), `run_compliance`, `ComplianceReport.to_markdown()` evidence package + `.drafts()` NCR/CAPA. `parse_clause` (LLM-authored rules, injected, offline-safe fallback to RULESET).
+- ✅ `scripts/compliance.py` + Makefile `compliance`; `/compliance` API endpoint.
+- ✅ `eval/compliance_eval.py` — self-contained scenario, gap-detection precision/recall/F1 = 1.0.
+- ✅ `tests/test_level4a.py` — 6 tests (38 total). Verified: PSV-110B caught GAP (239>182d, +57 overdue) with evidence + drafted NCR-AUTO/CAPA-AUTO.
+- ⚠️ Threshold checks (parameter vs setpoint) stubbed until Level 4b readings land.
+- ⚠️ Reg→RegRequirement→Asset graph edges not yet written back (report stands alone); optional polish.
+
+## 🔄 Level 4b — NEXT (immediate actions)
+1. `stores/readings.py` — time-series readings adapter (Postgres table; replay from a data file for the demo; OPC-UA/MQTT plug into the same interface). Import-safe/lazy.
+2. `agents/rca.py` — fuse work orders + failure records + inspections + OEM manual + recent readings → root-cause analysis with cited evidence, predictive rec, optimised schedule.
+3. Synthetic readings generator (vibration/temperature trend on P-101A rising before the incident).
+4. `scripts/rca.py` + Makefile target; API endpoint; tests on L0 deps.
 
 ---
 

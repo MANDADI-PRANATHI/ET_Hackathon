@@ -145,6 +145,23 @@ python eval/copilot_bench.py                                         # judged me
 Current benchmark (synthetic corpus): groundedness **1.0**, cross-functional
 discovery **1.0**, asset-spotting **1.0** across 8 expert questions.
 
+## Level 4a — Compliance & QMS agent
+Maps regulations against real records and flags gaps — the yes/no decision made
+by **exact code**, not the model.
+
+```bash
+make compliance          # evidence package + drafted non-conformances/CAPAs
+python eval/compliance_eval.py    # gap-detection accuracy (precision/recall/F1)
+```
+
+- **Hybrid**: the LLM turns a regulation clause into a checkable rule
+  (e.g. *valves → inspect every 182 days*); a plain-code checker compares it to
+  the actual last-inspection dates in the graph → **met / gap / unknown**.
+- Produces an **audit-ready evidence package** and auto-drafts a non-conformance
+  and corrective action (CAPA) for every gap, each tied to its evidence.
+- On the synthetic corpus it catches the planted gap — **PSV-110B, 57 days past
+  its statutory limit** — and scores **1.0** gap-detection precision/recall/F1.
+
 ## Project layout
 ```
 config/ontology/oil_and_gas.yaml   the asset-centric vocabulary (swap to change industry)

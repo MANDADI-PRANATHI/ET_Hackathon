@@ -46,11 +46,15 @@ copilot:   ## Level 3: ask the copilot (make copilot Q="Is PSV-110B overdue?")
 api:       ## Level 3: run the copilot API (http://localhost:8000/docs)
 	uvicorn brain.api.app:app --reload --port 8000
 
-eval:      ## run all benchmarks (extraction accuracy + copilot metrics)
-	python eval/extraction_eval.py && echo "" && python eval/copilot_bench.py
+compliance: ## Level 4a: run the compliance check + evidence package
+	python scripts/compliance.py
+
+eval:      ## run all benchmarks (extraction + copilot + compliance)
+	python eval/extraction_eval.py && echo "" && python eval/copilot_bench.py \
+	  && echo "" && python eval/compliance_eval.py
 
 test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
 .PHONY: up down logs install install-l1 install-l3 init verify synth ingest \
-        ingest-structured build-graph copilot api eval test
+        ingest-structured build-graph copilot api compliance eval test

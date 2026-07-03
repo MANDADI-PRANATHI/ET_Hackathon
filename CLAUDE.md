@@ -75,7 +75,8 @@ across documents by `(label, value)`; it never needs to know how a fact was foun
 | `retrieval/knowledge.py` | GraphRAG KnowledgeBase: spot assets (tag/name/class), graph-neighbourhood evidence, meaning search (embeddings or keyword fallback), combined retrieve. Runs on the in-memory graph — no DB needed. |
 | `copilot/answer.py` | Cited, confidence-scored answers; LLM injected; honest "don't know". |
 | `copilot/roles.py` | Role framing + PII gating (redacts Person for non-cleared roles). |
-| `api/app.py` | FastAPI: /ask, /graph, /roles, /health. KB built once at startup from staging. |
+| `api/app.py` | FastAPI: /ask, /graph, /roles, /health, /compliance. KB built once at startup from staging. |
+| `agents/compliance.py` | Hybrid compliance: LLM authors a checkable rule (`parse_clause`), plain code decides MET/GAP/UNKNOWN (`check_requirement`); evidence package + NCR/CAPA drafts. Curated RULESET ships with the profile. |
 
 ## Conventions
 - Every module starts with a plain-English docstring explaining *why*.

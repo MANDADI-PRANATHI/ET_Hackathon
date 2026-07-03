@@ -101,6 +101,23 @@ def create_app() -> FastAPI:
     def graph(include_chunks: bool = False) -> dict:
         return graph_json(state.kb.g, include_chunks=include_chunks)
 
+    @app.get("/compliance")
+    def compliance() -> dict:
+        from brain.agents.compliance import run_compliance
+        report = run_compliance(state.kb.g)
+        return {
+            "assessed_on": report.assessed_on,
+            "summary": report.summary,
+            "results": [
+                {"asset": r.asset, "code": r.code, "requirement": r.requirement_id,
+                 "status": r.status, "detail": r.detail,
+                 "evidence": (r.evidence.path if r.evidence else None)}
+                for r in report.results
+            ],
+            "evidence_package_markdown": report.to_markdown(),
+            "drafts": report.drafts(),
+        }
+
     return app
 
 
