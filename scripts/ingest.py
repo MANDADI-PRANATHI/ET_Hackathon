@@ -16,7 +16,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 from brain.ontology import load_ontology            # noqa: E402
-from brain.ingest.pipeline import ingest_corpus, ingest_file  # noqa: E402
+from brain.ingest.pipeline import (_carry_forward_embeddings, ingest_corpus,  # noqa: E402
+                                   ingest_file)
 from brain.schema import StagedDoc                  # noqa: E402
 
 
@@ -57,6 +58,7 @@ def main() -> None:
         if staged is None:
             print("  (unsupported file type — nothing staged)")
             return
+        _carry_forward_embeddings(staged, staging)
         out = staged.write(staging)
         print(f"  staged {out.name}: {len(staged.nodes)} nodes, "
               f"{len(staged.edges)} edges, {len(staged.chunks)} chunks")

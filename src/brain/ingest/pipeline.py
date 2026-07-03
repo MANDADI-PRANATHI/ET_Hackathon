@@ -181,6 +181,28 @@ def ingest_file(
     return staged
 
 
+def _carry_forward_embeddings(staged: StagedDoc, staging_dir: Path) -> None:
+    """Re-ingesting a document (e.g. after dropping in new files elsewhere)
+    would otherwise silently discard any embeddings already cached for its
+    unchanged passages, forcing a full, slow re-embed for no reason. Carry
+    them forward by (chunk id, exact text) match, so `make embed` only ever
+    pays for passages that are genuinely new or actually changed."""
+    existing_path = Path(staging_dir) / f"{staged.document.id}.json"
+    if not existing_path.exists():
+        return
+    try:
+        prior = StagedDoc.read(existing_path)
+    except Exception:  # noqa: BLE001 - a corrupt cache file just means no reuse
+        return
+    prior_by_id = {c.id: c for c in prior.chunks}
+    for ch in staged.chunks:
+        if ch.embedding is not None:
+            continue
+        old = prior_by_id.get(ch.id)
+        if old is not None and old.embedding is not None and old.text == ch.text:
+            ch.embedding = old.embedding
+
+
 def _iter_files(corpus_root: Path) -> List[Path]:
     skip = {".gitkeep", ".md"}
     return [p for p in sorted(corpus_root.rglob("*"))
@@ -222,6 +244,7 @@ def ingest_corpus(
         if staged is None:
             counts["skipped"] += 1
             continue
+        _carry_forward_embeddings(staged, staging_dir)
         staged.write(staging_dir)
         counts["documents"] += 1
         counts["nodes"] += len(staged.nodes)
