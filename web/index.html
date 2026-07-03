@@ -2,134 +2,301 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sutradhar — Asset & Operations Brain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;450;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2b3444;
-    --text:#e6edf3; --muted:#93a1b0; --accent:#3fb6ff; --accent2:#7ee787;
-    --high:#3fb950; --med:#d29922; --low:#f85149;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:var(--bg);color:var(--text);-webkit-text-size-adjust:100%}
-  header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#111826,#0d1117);
-    border-bottom:1px solid var(--line);padding:14px 16px}
-  header h1{margin:0;font-size:18px;letter-spacing:.3px}
-  header h1 span{color:var(--accent)}
-  header p{margin:2px 0 0;font-size:12px;color:var(--muted)}
-  .wrap{max-width:900px;margin:0 auto;padding:12px 16px 96px}
-  .tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 16px;position:sticky;top:56px;
-    background:var(--bg);z-index:9;border-bottom:1px solid var(--line)}
-  .tab{white-space:nowrap;padding:8px 14px;border-radius:20px;border:1px solid var(--line);
-    background:var(--panel);color:var(--muted);font-size:13px;cursor:pointer}
-  .tab.active{background:var(--accent);color:#04121f;border-color:var(--accent);font-weight:600}
-  .view{display:none}.view.active{display:block}
-  .row{display:flex;gap:8px;align-items:center}
-  select,input,textarea,button{font:inherit}
-  .ask-bar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);
-    border-top:1px solid var(--line);padding:10px 12px}
-  .ask-inner{max-width:900px;margin:0 auto;display:flex;gap:8px}
-  #q{flex:1;padding:12px 14px;border-radius:12px;border:1px solid var(--line);
-    background:var(--panel2);color:var(--text)}
-  button{cursor:pointer;border:none;border-radius:12px;padding:12px 16px;background:var(--accent);
-    color:#04121f;font-weight:600}
-  button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
-  button.mic{background:var(--panel2);color:var(--accent);border:1px solid var(--line);min-width:48px}
-  button.mic.rec{background:var(--low);color:#fff}
-  .role{padding:10px 12px;border-radius:12px;border:1px solid var(--line);
-    background:var(--panel2);color:var(--text)}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
-    padding:14px;margin:12px 0}
-  .msg{background:var(--panel2)}
-  .q{color:var(--accent2);font-weight:600;margin-bottom:6px}
-  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
-  .badge.High{background:rgba(63,185,80,.18);color:var(--high)}
-  .badge.Medium{background:rgba(210,153,34,.18);color:var(--med)}
-  .badge.Low{background:rgba(248,81,73,.18);color:var(--low)}
-  .xfn{display:inline-block;margin-left:8px;font-size:11px;color:var(--accent);
-    border:1px solid var(--accent);border-radius:20px;padding:2px 8px}
-  .cite{border-left:3px solid var(--line);padding:6px 10px;margin:8px 0;background:var(--panel2);
-    border-radius:0 8px 8px 0;font-size:13px}
-  .cite b{color:var(--accent)}
-  .muted{color:var(--muted);font-size:12px}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
-  .pill{padding:2px 8px;border-radius:20px;font-size:12px;font-weight:700}
-  .pill.MET{background:rgba(63,185,80,.18);color:var(--high)}
-  .pill.GAP{background:rgba(248,81,73,.18);color:var(--low)}
-  .pill.UNKNOWN{background:rgba(147,161,176,.18);color:var(--muted)}
-  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-  .tile{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
-  .tile .v{font-size:26px;font-weight:800;color:var(--accent2)}
-  .tile .k{font-size:12px;color:var(--muted);margin-top:4px}
-  .warn{border-left:4px solid var(--med);padding:8px 12px;margin:8px 0;background:var(--panel2);border-radius:0 8px 8px 0}
-  .warn.High{border-color:var(--low)} .warn.Medium{border-color:var(--med)} .warn.Low{border-color:var(--muted)}
-  svg{width:100%;height:auto;background:var(--panel2);border-radius:12px}
-  .hub{fill:var(--accent)} .node{fill:#8b949e} .lbl{fill:var(--text);font-size:9px}
-  .hint{color:var(--muted);font-size:12px;margin:6px 0 0}
+/* ─── shadcn/ui design tokens (light, neutral grey) ─────────────────────── */
+:root{
+  --background:240 6% 95%;      /* clear grey page */
+  --surface:240 6% 97%;
+  --card:0 0% 100%;
+  --foreground:240 10% 12%;
+  --muted:240 5% 92%;
+  --muted-foreground:240 4% 44%;
+  --border:240 6% 88%;
+  --input:240 6% 88%;
+  --primary:243 62% 54%;        /* refined indigo */
+  --primary-foreground:0 0% 100%;
+  --secondary:240 5% 90%;
+  --accent:243 62% 96%;
+  --ring:243 62% 54%;
+  --success:158 74% 34%;
+  --success-bg:158 64% 94%;
+  --warning:32 90% 42%;
+  --warning-bg:38 92% 93%;
+  --danger:347 74% 46%;
+  --danger-bg:347 77% 95%;
+  --radius:0.65rem;
+  --font-sans:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-display:"Space Grotesk",var(--font-sans);
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --shadow-sm:0 1px 2px 0 hsl(240 10% 20% / .05);
+  --shadow:0 1px 3px 0 hsl(240 10% 20% / .08),0 1px 2px -1px hsl(240 10% 20% / .06);
+  --shadow-md:0 8px 24px -8px hsl(243 40% 30% / .18);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:hsl(var(--background));color:hsl(var(--foreground));
+  font-family:var(--font-sans);font-size:15px;line-height:1.55;font-weight:450;
+  letter-spacing:-0.006em;
+}
+h1,h2,h3{font-family:var(--font-display);letter-spacing:-0.02em;font-weight:600;margin:0}
+.mono{font-family:var(--font-mono);font-feature-settings:"ss01";letter-spacing:-0.02em}
+
+/* ─── layout ─────────────────────────────────────────────────────────────── */
+header{
+  position:sticky;top:0;z-index:20;background:hsl(var(--card)/.85);
+  backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid hsl(var(--border));
+}
+.head-inner{max-width:960px;margin:0 auto;padding:14px 20px;display:flex;
+  align-items:center;gap:12px;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.logo{width:34px;height:34px;border-radius:9px;flex:none;
+  background:linear-gradient(135deg,hsl(243 62% 58%),hsl(255 60% 46%));
+  display:grid;place-items:center;color:#fff;font-family:var(--font-display);
+  font-weight:700;font-size:18px;box-shadow:var(--shadow-md)}
+.brand h1{font-size:18px}
+.brand .sub{font-size:12px;color:hsl(var(--muted-foreground));font-weight:450;
+  font-family:var(--font-sans)}
+.hstat{font-family:var(--font-mono);font-size:11.5px;color:hsl(var(--muted-foreground));
+  white-space:nowrap;display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:hsl(var(--success));flex:none}
+.dot.off{background:hsl(var(--muted-foreground))}
+
+.tabsbar{position:sticky;top:63px;z-index:15;background:hsl(var(--background)/.9);
+  backdrop-filter:blur(8px);border-bottom:1px solid hsl(var(--border))}
+.tabslist{max-width:960px;margin:0 auto;padding:9px 16px;display:flex;gap:4px;
+  overflow-x:auto;scrollbar-width:none}
+.tabslist::-webkit-scrollbar{display:none}
+.tab{white-space:nowrap;padding:7px 15px;border-radius:8px;font-size:13.5px;
+  font-weight:500;color:hsl(var(--muted-foreground));background:transparent;
+  border:none;cursor:pointer;transition:.15s;font-family:var(--font-sans)}
+.tab:hover{color:hsl(var(--foreground));background:hsl(var(--muted))}
+.tab[data-state=active]{color:hsl(var(--primary));background:hsl(var(--accent));
+  box-shadow:inset 0 0 0 1px hsl(var(--primary)/.18)}
+
+.wrap{max-width:960px;margin:0 auto;padding:20px 20px 120px}
+.view{display:none;animation:fade .25s ease}.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ─── shadcn components ──────────────────────────────────────────────────── */
+.card{background:hsl(var(--card));border:1px solid hsl(var(--border));
+  border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:20px;margin-bottom:16px}
+.card h2,.card h3{font-size:15px;margin-bottom:4px}
+.card .desc{font-size:13px;color:hsl(var(--muted-foreground));margin-bottom:14px}
+.hr{height:1px;background:hsl(var(--border));margin:14px 0}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;
+  padding:0 17px;border-radius:8px;font-size:14px;font-weight:500;font-family:var(--font-sans);
+  border:1px solid transparent;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn:focus-visible{outline:2px solid hsl(var(--ring));outline-offset:2px}
+.btn-primary{background:hsl(var(--primary));color:hsl(var(--primary-foreground));box-shadow:var(--shadow-sm)}
+.btn-primary:hover{background:hsl(243 62% 48%)}
+.btn-outline{background:hsl(var(--card));border-color:hsl(var(--input));color:hsl(var(--foreground))}
+.btn-outline:hover{background:hsl(var(--muted))}
+.btn-icon{width:44px;padding:0;font-size:17px}
+.btn-icon.rec{background:hsl(var(--danger));border-color:transparent;color:#fff}
+
+.field{display:flex;flex-direction:column;gap:6px}
+label.lbl{font-size:12.5px;font-weight:500;color:hsl(var(--muted-foreground))}
+.input,.select{height:40px;border:1px solid hsl(var(--input));background:hsl(var(--card));
+  border-radius:8px;padding:0 12px;font:inherit;font-size:14px;color:hsl(var(--foreground));
+  transition:.15s}
+.input:focus,.select:focus{outline:none;border-color:hsl(var(--ring));
+  box-shadow:0 0 0 3px hsl(var(--ring)/.16)}
+.select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23888' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:34px;
+  -webkit-appearance:none;appearance:none}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;
+  font-size:11.5px;font-weight:600;border:1px solid transparent;letter-spacing:.01em}
+.badge svg{width:12px;height:12px}
+.b-High,.b-MET{background:hsl(var(--success-bg));color:hsl(var(--success));border-color:hsl(var(--success)/.25)}
+.b-Medium,.b-UNKNOWN{background:hsl(var(--warning-bg));color:hsl(var(--warning));border-color:hsl(var(--warning)/.25)}
+.b-Low,.b-GAP{background:hsl(var(--danger-bg));color:hsl(var(--danger));border-color:hsl(var(--danger)/.25)}
+.badge.outline{background:hsl(var(--card));color:hsl(var(--muted-foreground));border-color:hsl(var(--border))}
+.badge.indigo{background:hsl(var(--accent));color:hsl(var(--primary));border-color:hsl(var(--primary)/.22)}
+.tag{font-family:var(--font-mono);font-size:12px;font-weight:500;padding:2px 7px;border-radius:6px;
+  background:hsl(var(--muted));color:hsl(var(--foreground))}
+
+/* chat */
+.q-head{display:flex;align-items:flex-start;gap:9px;margin-bottom:10px}
+.q-head .qmark{font-family:var(--font-display);font-weight:700;color:hsl(var(--primary));font-size:15px}
+.q-text{font-family:var(--font-display);font-weight:600;font-size:15.5px;line-height:1.4}
+.answer{font-size:14.5px;color:hsl(var(--foreground));margin:2px 0 12px;white-space:pre-wrap}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.cites{display:flex;flex-direction:column;gap:8px}
+.cite{border:1px solid hsl(var(--border));border-left:3px solid hsl(var(--primary)/.55);
+  border-radius:0 8px 8px 0;padding:9px 12px;background:hsl(var(--surface))}
+.cite .top{display:flex;gap:8px;align-items:center;font-size:12.5px;margin-bottom:3px}
+.cite .n{font-family:var(--font-mono);font-weight:600;color:hsl(var(--primary))}
+.cite .file{font-family:var(--font-mono);font-size:12px;color:hsl(var(--foreground))}
+.cite .snip{font-size:12.5px;color:hsl(var(--muted-foreground));line-height:1.45}
+.hint{font-size:12.5px;color:hsl(var(--muted-foreground));margin-top:12px;line-height:1.7}
+.hint b{color:hsl(var(--foreground));font-weight:500}
+.empty{color:hsl(var(--muted-foreground));font-size:14px;padding:8px 0}
+
+/* table */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:9px 10px;font-weight:600;font-size:12px;text-transform:uppercase;
+  letter-spacing:.04em;color:hsl(var(--muted-foreground));border-bottom:1px solid hsl(var(--border))}
+td{padding:10px;border-bottom:1px solid hsl(var(--border));vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.detail{color:hsl(var(--muted-foreground));font-size:13px}
+
+/* warnings */
+.warn{border:1px solid hsl(var(--border));border-left-width:4px;border-radius:0 9px 9px 0;
+  padding:11px 14px;margin-bottom:9px;background:hsl(var(--surface))}
+.warn.High{border-left-color:hsl(var(--danger))}
+.warn.Medium{border-left-color:hsl(var(--warning))}
+.warn.Low{border-left-color:hsl(var(--muted-foreground))}
+.warn .w-top{display:flex;align-items:center;gap:9px;margin-bottom:3px}
+.warn .w-msg{font-size:13.5px;font-weight:500}
+.warn .w-basis{font-size:12px;color:hsl(var(--muted-foreground));font-family:var(--font-mono)}
+.plist{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:7px}
+.plist li{font-size:13px;display:flex;gap:8px;align-items:baseline;padding-bottom:7px;
+  border-bottom:1px dashed hsl(var(--border))}
+.plist li:last-child{border-bottom:none}
+.pcount{font-family:var(--font-mono);font-weight:600;color:hsl(var(--primary));font-size:12px}
+
+/* scorecard tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:hsl(var(--surface));border:1px solid hsl(var(--border));border-radius:10px;
+  padding:16px}
+.tile .v{font-family:var(--font-mono);font-size:30px;font-weight:600;line-height:1;
+  color:hsl(var(--primary))}
+.tile .v.na{color:hsl(var(--muted-foreground));font-size:20px}
+.tile .k{font-size:12px;color:hsl(var(--muted-foreground));margin-top:8px;font-weight:500}
+.speed{margin-top:14px;font-size:12.5px;color:hsl(var(--muted-foreground));
+  font-family:var(--font-mono);background:hsl(var(--muted));padding:8px 12px;border-radius:8px}
+.speed b{color:hsl(var(--success))}
+
+/* graph */
+svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
+  border:1px solid hsl(var(--border))}
+.g-line{stroke:hsl(var(--border))}
+.g-node{fill:hsl(var(--muted-foreground))}
+.g-hub{fill:hsl(var(--primary))}
+.g-lbl{fill:hsl(var(--foreground));font-family:var(--font-mono);font-size:9px}
+.g-rel{fill:hsl(var(--muted-foreground));font-family:var(--font-mono);font-size:8px}
+.g-hublbl{fill:#fff;font-family:var(--font-display);font-weight:700;font-size:10px}
+
+/* ask bar */
+.askbar{position:fixed;bottom:0;left:0;right:0;z-index:20;
+  background:hsl(var(--card)/.9);backdrop-filter:blur(10px);
+  border-top:1px solid hsl(var(--border));padding:12px 16px}
+.askbar-inner{max-width:960px;margin:0 auto;display:flex;gap:9px}
+#q{flex:1}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid hsl(var(--border));
+  border-top-color:hsl(var(--primary));border-radius:50%;animation:sp .7s linear infinite;
+  vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ─── mobile ─────────────────────────────────────────────────────────────── */
+@media (max-width:560px){
+  body{font-size:14.5px}
+  .head-inner{padding:12px 16px}
+  .brand h1{font-size:16px}
+  .hstat{display:none}            /* status shown via the online dot elsewhere */
+  .tabsbar{top:57px}
+  .wrap{padding:16px 14px 116px}
+  .card{padding:16px}
+  .meta-row{gap:6px}
+}
 </style>
 </head>
 <body>
 <header>
-  <h1><span>Sutradhar</span> — Unified Asset &amp; Operations Brain</h1>
-  <p>Ask anything across the plant's documents. Answers are cited, confidence-scored, and role-aware.</p>
+  <div class="head-inner">
+    <div class="brand">
+      <div class="logo">सू</div>
+      <div>
+        <h1>Sutradhar</h1>
+        <div class="sub">Unified Asset &amp; Operations Brain</div>
+      </div>
+    </div>
+    <div class="hstat" id="health"><span class="dot off"></span> connecting…</div>
+  </div>
 </header>
 
-<div class="tabs" id="tabs">
-  <div class="tab active" data-v="ask">Ask</div>
-  <div class="tab" data-v="graph">Graph</div>
-  <div class="tab" data-v="compliance">Compliance</div>
-  <div class="tab" data-v="warnings">Warnings</div>
-  <div class="tab" data-v="score">Scorecard</div>
+<div class="tabsbar">
+  <div class="tabslist" id="tabs">
+    <button class="tab" data-v="ask" data-state="active">Ask</button>
+    <button class="tab" data-v="graph">Knowledge Graph</button>
+    <button class="tab" data-v="compliance">Compliance</button>
+    <button class="tab" data-v="warnings">Warnings</button>
+    <button class="tab" data-v="score">Scorecard</button>
+  </div>
 </div>
 
 <div class="wrap">
+  <!-- ASK -->
   <div class="view active" id="view-ask">
-    <div class="row" style="margin:8px 0">
-      <span class="muted">Role:</span>
-      <select class="role" id="role">
-        <option>engineer</option><option>technician</option>
-        <option>safety_officer</option><option>auditor</option><option>operator</option>
-      </select>
-      <span class="muted" id="health"></span>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+        <div>
+          <h2>Ask the plant brain</h2>
+          <div class="desc" style="margin:0">Cited, confidence-scored answers across every document — framed for your role.</div>
+        </div>
+        <div class="field" style="min-width:170px">
+          <label class="lbl" for="role">Viewing as</label>
+          <select class="select" id="role">
+            <option value="engineer">Reliability engineer</option>
+            <option value="technician">Field technician</option>
+            <option value="safety_officer">Safety officer</option>
+            <option value="auditor">Auditor</option>
+            <option value="operator">Control-room operator</option>
+          </select>
+        </div>
+      </div>
     </div>
     <div id="chat"></div>
-    <p class="hint">Try: “Is PSV-110B overdue for inspection?” · “Why did P-101A fail?” ·
-      “What protects V-204 and at what setpoint?”</p>
+    <p class="hint">Try &nbsp;<b>“Is PSV-110B overdue for inspection?”</b> &nbsp;·&nbsp;
+      <b>“Why did P-101A fail?”</b> &nbsp;·&nbsp;
+      <b>“What protects V-204 and at what setpoint?”</b></p>
   </div>
 
+  <!-- GRAPH -->
   <div class="view" id="view-graph">
-    <div class="row" style="margin:8px 0">
-      <span class="muted">Asset hub:</span>
-      <select class="role" id="assetSel"></select>
+    <div class="card">
+      <div class="field" style="max-width:280px">
+        <label class="lbl" for="assetSel">Asset hub</label>
+        <select class="select" id="assetSel"></select>
+      </div>
+      <div class="hr"></div>
+      <div id="graphBox"><div class="empty">Loading graph…</div></div>
     </div>
-    <div id="graphBox"></div>
   </div>
 
-  <div class="view" id="view-compliance"><div id="compBox" class="muted">Loading…</div></div>
-  <div class="view" id="view-warnings"><div id="warnBox" class="muted">Loading…</div></div>
-  <div class="view" id="view-score"><div id="scoreBox" class="muted">Loading…</div></div>
+  <!-- COMPLIANCE -->
+  <div class="view" id="view-compliance"><div id="compBox"><div class="card"><div class="empty">Loading…</div></div></div></div>
+  <!-- WARNINGS -->
+  <div class="view" id="view-warnings"><div id="warnBox"><div class="card"><div class="empty">Loading…</div></div></div></div>
+  <!-- SCORECARD -->
+  <div class="view" id="view-score"><div id="scoreBox"><div class="card"><div class="empty">Loading…</div></div></div></div>
 </div>
 
-<div class="ask-bar" id="askbar">
-  <div class="ask-inner">
-    <button class="mic" id="mic" title="Voice input">🎤</button>
-    <input id="q" placeholder="Ask the plant brain…" autocomplete="off" />
-    <button id="send">Ask</button>
+<div class="askbar" id="askbar">
+  <div class="askbar-inner">
+    <button class="btn btn-outline btn-icon" id="mic" title="Voice input" aria-label="Voice input">🎙</button>
+    <input class="input" id="q" placeholder="Ask anything across the plant's knowledge…" autocomplete="off" />
+    <button class="btn btn-primary" id="send">Ask</button>
   </div>
 </div>
 
 <script>
-const API = ""; // same origin
 const $ = s => document.querySelector(s);
 let GRAPH = null;
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>';
 
-// --- tabs ---
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
-  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(x=>x.setAttribute("data-state",""));
   document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
-  t.classList.add("active");
+  t.setAttribute("data-state","active");
   $("#view-"+t.dataset.v).classList.add("active");
   $("#askbar").style.display = t.dataset.v==="ask" ? "block":"none";
   if(t.dataset.v==="graph") loadGraph();
@@ -138,57 +305,58 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   if(t.dataset.v==="score") loadScore();
 });
 
-// --- health ---
-fetch(API+"/health").then(r=>r.json()).then(h=>{
-  $("#health").textContent = `· ${h.assets} assets · ${h.chunks} passages · LLM ${h.llm_ready?"on":"off"}`;
-}).catch(()=>{$("#health").textContent="· API offline"});
+fetch("/health").then(r=>r.json()).then(h=>{
+  $("#health").innerHTML =
+    `<span class="dot"></span> ${h.assets} assets · ${h.chunks} passages · brain ${h.llm_ready?"online":"offline"}`;
+}).catch(()=>{ $("#health").innerHTML = `<span class="dot off"></span> API offline`; });
 
-// --- ask ---
+/* ── ask ── */
 async function ask(){
-  const q = $("#q").value.trim(); if(!q) return;
-  $("#q").value="";
-  const chat = $("#chat");
-  const card = document.createElement("div");
-  card.className="card msg";
-  card.innerHTML = `<div class="q">${esc(q)}</div><div class="muted">Thinking…</div>`;
-  chat.prepend(card);
+  const q=$("#q").value.trim(); if(!q) return; $("#q").value="";
+  const card=document.createElement("div"); card.className="card";
+  card.innerHTML=`<div class="q-head"><span class="qmark">Q</span><span class="q-text">${esc(q)}</span></div>
+    <div class="answer"><span class="spin"></span>Reasoning across the knowledge graph…</div>`;
+  $("#chat").prepend(card);
   try{
-    const res = await fetch(API+"/ask",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({question:q, role:$("#role").value})});
-    const a = await res.json();
-    card.innerHTML = renderAnswer(a);
-  }catch(e){ card.innerHTML = `<div class="q">${esc(q)}</div><div class="badge Low">API error</div>`; }
+    const a=await (await fetch("/ask",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question:q,role:$("#role").value})})).json();
+    card.innerHTML=renderAnswer(a);
+  }catch(e){ card.querySelector(".answer").innerHTML=`<span class="badge b-Low">API error</span>`; }
 }
 function renderAnswer(a){
-  const cites = (a.citations||[]).slice(0,8).map(c=>{
-    const loc = c.page ? ` p${c.page}`:"";
-    const name = (c.path||"").split(/[\\/]/).pop();
-    return `<div class="cite"><b>[${c.n}]</b> (${c.doc_type||c.kind}) ${esc(name)}${loc}<br>
-      <span class="muted">${esc((c.snippet||"").slice(0,160))}</span></div>`;
+  const cites=(a.citations||[]).slice(0,8).map(c=>{
+    const loc=c.page?` · p${c.page}`:""; const name=(c.path||"").split(/[\\/]/).pop();
+    return `<div class="cite"><div class="top"><span class="n">[${c.n}]</span>
+      <span class="badge outline">${esc(c.doc_type||c.kind)}</span>
+      <span class="file">${esc(name)}${loc}</span></div>
+      <div class="snip">${esc((c.snippet||"").slice(0,170))}</div></div>`;
   }).join("");
-  const xfn = a.cross_functional ? `<span class="xfn">cross-functional: ${(a.source_doc_types||[]).join(", ")}</span>`:"";
-  return `<div class="q">${esc(a.question)}</div>
-    <div style="margin:8px 0">${esc(a.answer)}</div>
-    <div><span class="badge ${a.confidence_label}">Confidence: ${a.confidence_label} (${a.confidence})</span>${xfn}</div>
-    ${a.assets&&a.assets.length?`<div class="muted" style="margin-top:6px">About: ${a.assets.join(", ")}</div>`:""}
-    <div style="margin-top:8px">${cites}</div>`;
+  const xfn=a.cross_functional
+    ? `<span class="badge indigo">⇄ cross-functional · ${(a.source_doc_types||[]).join(", ")}</span>`:"";
+  const assets=(a.assets||[]).map(x=>`<span class="tag">${esc(x)}</span>`).join(" ");
+  return `<div class="q-head"><span class="qmark">Q</span><span class="q-text">${esc(a.question)}</span></div>
+    <div class="answer">${esc(a.answer)}</div>
+    <div class="meta-row">
+      <span class="badge b-${a.confidence_label}">${a.confidence_label==="High"?ICON_CHECK:""}Confidence ${a.confidence_label} · ${a.confidence}</span>
+      ${xfn} ${assets}
+    </div>
+    <div class="cites">${cites}</div>`;
 }
 $("#send").onclick=ask;
 $("#q").addEventListener("keydown",e=>{if(e.key==="Enter")ask();});
 
-// --- voice (Web Speech API) ---
-const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
-if(SR){
-  const rec=new SR(); rec.lang="en-IN"; rec.interimResults=false;
-  $("#mic").onclick=()=>{ $("#mic").classList.add("rec"); try{rec.start();}catch(e){} };
-  rec.onresult=e=>{ $("#q").value=e.results[0][0].transcript; $("#mic").classList.remove("rec"); ask(); };
-  rec.onerror=()=>$("#mic").classList.remove("rec");
-  rec.onend=()=>$("#mic").classList.remove("rec");
+/* ── voice ── */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){ const rec=new SR(); rec.lang="en-IN"; rec.interimResults=false;
+  $("#mic").onclick=()=>{$("#mic").classList.add("rec");try{rec.start();}catch(e){}};
+  rec.onresult=e=>{$("#q").value=e.results[0][0].transcript;$("#mic").classList.remove("rec");ask();};
+  rec.onerror=rec.onend=()=>$("#mic").classList.remove("rec");
 } else { $("#mic").style.display="none"; }
 
-// --- graph ---
+/* ── graph ── */
 async function loadGraph(){
-  if(!GRAPH){ GRAPH = await (await fetch(API+"/graph")).json();
+  if(!GRAPH){
+    try{ GRAPH=await (await fetch("/graph")).json(); }catch(e){ return; }
     const sel=$("#assetSel");
     GRAPH.nodes.filter(n=>n.hub).forEach(n=>{
       const o=document.createElement("option"); o.value=n.value; o.textContent=n.display||n.value; sel.appendChild(o);
@@ -201,62 +369,88 @@ function drawGraph(asset){
   const id="Asset:"+asset;
   const edges=GRAPH.edges.filter(e=>e.source===id||e.target===id);
   const nbrs=[...new Set(edges.map(e=>e.source===id?e.target:e.source))];
-  const W=680,H=Math.max(300,120+nbrs.length*10),cx=W/2,cy=H/2,R=Math.min(cx,cy)-60;
+  const W=680,H=Math.max(320,150+nbrs.length*9),cx=W/2,cy=H/2,R=Math.min(cx,cy)-64;
   const byId=Object.fromEntries(GRAPH.nodes.map(n=>[n.id,n]));
   let s=`<svg viewBox="0 0 ${W} ${H}">`;
   nbrs.forEach((nid,i)=>{
-    const ang=2*Math.PI*i/nbrs.length, x=cx+R*Math.cos(ang), y=cy+R*Math.sin(ang);
+    const ang=2*Math.PI*i/nbrs.length,x=cx+R*Math.cos(ang),y=cy+R*Math.sin(ang);
     const et=edges.find(e=>e.source===nid||e.target===nid);
-    s+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#2b3444"/>`;
-    s+=`<circle cx="${x}" cy="${y}" r="6" class="node"/>`;
-    const n=byId[nid]||{}; const lab=(n.label||"")+": "+((n.display||n.value||"").slice(0,14));
-    s+=`<text class="lbl" x="${x}" y="${y-9}" text-anchor="middle">${esc(lab)}</text>`;
-    if(et) s+=`<text class="lbl" x="${(cx+x)/2}" y="${(cy+y)/2}" text-anchor="middle" fill="#5a6b80">${esc(et.type)}</text>`;
+    s+=`<line class="g-line" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`;
+    s+=`<circle class="g-node" cx="${x}" cy="${y}" r="5.5"/>`;
+    const n=byId[nid]||{},lab=(n.label||"")+": "+((n.display||n.value||"").slice(0,14));
+    s+=`<text class="g-lbl" x="${x}" y="${y-9}" text-anchor="middle">${esc(lab)}</text>`;
+    if(et) s+=`<text class="g-rel" x="${(cx+x)/2}" y="${(cy+y)/2-2}" text-anchor="middle">${esc(et.type)}</text>`;
   });
-  s+=`<circle cx="${cx}" cy="${cy}" r="16" class="hub"/>`;
-  s+=`<text class="lbl" x="${cx}" y="${cy+3}" text-anchor="middle" fill="#04121f" font-weight="bold">${esc(asset)}</text></svg>`;
-  $("#graphBox").innerHTML=`<div class="card"><div class="muted">${nbrs.length} connections — ${asset} at the hub</div>${s}</div>`;
+  s+=`<circle class="g-hub" cx="${cx}" cy="${cy}" r="19"/>`;
+  s+=`<text class="g-hublbl" x="${cx}" y="${cy+3.5}" text-anchor="middle">${esc(asset)}</text></svg>`;
+  $("#graphBox").innerHTML=`<div style="font-size:12.5px;color:hsl(var(--muted-foreground));margin-bottom:8px">
+    <b class="mono" style="color:hsl(var(--primary))">${nbrs.length}</b> connections — ${esc(asset)} at the hub</div>${s}`;
 }
 
-// --- compliance ---
+/* ── compliance ── */
 async function loadCompliance(){
-  const d=await (await fetch(API+"/compliance")).json();
-  const rows=d.results.map(r=>`<tr><td>${r.asset}</td><td>${r.code}</td>
-    <td><span class="pill ${r.status}">${r.status}</span></td><td>${esc(r.detail)}</td></tr>`).join("");
-  const drafts=(d.drafts||[]).map(x=>`<div class="warn High"><b>${x.non_conformance.id}</b> (${x.non_conformance.asset}):
-    ${esc(x.non_conformance.finding)}<br><span class="muted">→ ${x.capa.id}: ${esc(x.capa.action)} (due ${x.capa.due_date})</span></div>`).join("");
-  $("#compBox").innerHTML=`<div class="card"><h3>Compliance — assessed ${d.assessed_on}</h3>
-    <p>${d.summary.MET} met · <b style="color:var(--low)">${d.summary.GAP} gaps</b> · ${d.summary.UNKNOWN} unknown</p>
-    <table><tr><th>Asset</th><th>Reg</th><th>Status</th><th>Detail</th></tr>${rows}</table></div>
-    ${drafts?`<div class="card"><h3>Auto-drafted QMS actions</h3>${drafts}</div>`:""}`;
+  let d; try{ d=await (await fetch("/compliance")).json(); }catch(e){ return; }
+  const rows=d.results.map(r=>`<tr><td><span class="tag">${esc(r.asset)}</span></td>
+    <td class="mono" style="font-size:12px">${esc(r.code)}</td>
+    <td><span class="badge b-${r.status}">${r.status==="MET"?ICON_CHECK:""}${r.status}</span></td>
+    <td class="detail">${esc(r.detail)}</td></tr>`).join("");
+  const drafts=(d.drafts||[]).map(x=>`<div class="warn High"><div class="w-top">
+    <span class="badge b-GAP">${x.non_conformance.id}</span><span class="tag">${esc(x.non_conformance.asset)}</span></div>
+    <div class="w-msg">${esc(x.non_conformance.finding)}</div>
+    <div class="w-basis">→ ${x.capa.id}: ${esc(x.capa.action)} (due ${x.capa.due_date})</div></div>`).join("");
+  $("#compBox").innerHTML=`<div class="card">
+    <h2>Regulatory compliance</h2>
+    <div class="desc">Assessed ${d.assessed_on} — the AI authors each rule; plain code makes the verdict.</div>
+    <div class="meta-row">
+      <span class="badge b-MET">${ICON_CHECK}${d.summary.MET} met</span>
+      <span class="badge b-GAP">${d.summary.GAP} gap${d.summary.GAP===1?"":"s"}</span>
+      <span class="badge b-UNKNOWN">${d.summary.UNKNOWN} unknown</span>
+    </div>
+    <table><thead><tr><th>Asset</th><th>Reg</th><th>Status</th><th>Detail</th></tr></thead><tbody>${rows}</tbody></table>
+  </div>${drafts?`<div class="card"><h2>Auto-drafted QMS actions</h2>
+    <div class="desc">Every gap raises a non-conformance and a corrective action, tied to evidence.</div>${drafts}</div>`:""}`;
 }
 
-// --- warnings ---
+/* ── warnings ── */
 async function loadWarnings(){
-  const d=await (await fetch(API+"/warnings")).json();
-  const ws=d.warnings.map(w=>`<div class="warn ${w.severity}"><b>[${w.severity}] ${w.asset}</b> — ${esc(w.message)}
-    <br><span class="muted">basis: ${w.basis}</span></div>`).join("");
-  const ps=d.patterns.map(p=>`<li>${esc(p.kind.replace(/_/g," "))}: <b>${esc(p.key)}</b> ×${p.count}
-    <span class="muted">(${p.assets.join(", ")})</span></li>`).join("");
-  $("#warnBox").innerHTML=`<div class="card"><h3>Proactive warnings</h3>${ws||"<span class=muted>None</span>"}</div>
-    <div class="card"><h3>Recurring patterns in plant history</h3><ul>${ps}</ul></div>`;
+  let d; try{ d=await (await fetch("/warnings")).json(); }catch(e){ return; }
+  const ws=d.warnings.map(w=>`<div class="warn ${w.severity}"><div class="w-top">
+    <span class="badge b-${w.severity==='High'?'Low':(w.severity==='Medium'?'Medium':'UNKNOWN')}">${w.severity}</span>
+    <span class="tag">${esc(w.asset)}</span></div>
+    <div class="w-msg">${esc(w.message)}</div><div class="w-basis">basis: ${esc(w.basis)}</div></div>`).join("");
+  const ps=d.patterns.map(p=>`<li><span class="pcount">×${p.count}</span>
+    <span><b style="font-weight:500">${esc(p.kind.replace(/_/g," "))}</b>: ${esc(p.key)}
+    <span style="color:hsl(var(--muted-foreground))">(${p.assets.join(", ")})</span></span></li>`).join("");
+  $("#warnBox").innerHTML=`<div class="card"><h2>Proactive warnings</h2>
+    <div class="desc">Pushed before problems recur — from compliance gaps, rising trends, and recurring findings.</div>
+    ${ws||'<div class="empty">No active warnings.</div>'}</div>
+    <div class="card"><h2>Recurring patterns in plant history</h2>
+    <div class="desc">Systemic issues no single review would catch.</div><ul class="plist">${ps}</ul></div>`;
 }
 
-// --- scorecard ---
+/* ── scorecard ── */
 async function loadScore(){
-  const d=await (await fetch(API+"/scorecard")).json();
-  const v=x=>x&&(x.value!==undefined?x.value:(x.groundedness!==undefined?x.groundedness:"n/a"));
-  const tiles=[
-    ["Entity extraction (F1)",v(d.entity_extraction_accuracy)],
-    ["Answer groundedness",v(d.query_answer_quality)],
-    ["Graph linkage",v(d.knowledge_graph_linkage_completeness)],
-    ["Compliance gap (F1)",v(d.compliance_gap_detection)],
-    ["Cross-functional",v(d.cross_functional_discovery)],
-    ["RCA quality",v(d.rca_quality)],
-    ["Lessons quality",v(d.lessons_quality)],
-  ].map(([k,val])=>`<div class="tile"><div class="v">${val}</div><div class="k">${k}</div></div>`).join("");
-  $("#scoreBox").innerHTML=`<div class="card"><h3>Live scorecard — maps to the evaluation focus</h3>
-    <div class="tiles">${tiles}</div></div>`;
+  let d; try{ d=await (await fetch("/scorecard")).json(); }catch(e){ return; }
+  const val=x=>{ if(!x||x.error) return null;
+    return x.value!==undefined?x.value:(x.groundedness!==undefined?x.groundedness:null); };
+  const rows=[
+    ["Entity extraction",d.entity_extraction_accuracy,"F1"],
+    ["Answer groundedness",d.query_answer_quality,""],
+    ["Graph linkage",d.knowledge_graph_linkage_completeness,""],
+    ["Compliance gap",d.compliance_gap_detection,"F1"],
+    ["Cross-functional",d.cross_functional_discovery,"rate"],
+    ["RCA quality",d.rca_quality,""],
+    ["Lessons quality",d.lessons_quality,""],
+  ];
+  const tiles=rows.map(([k,x,u])=>{const v=val(x);
+    return `<div class="tile"><div class="v ${v===null?'na':''}">${v===null?'n/a':v}</div>
+      <div class="k">${k}${u?` <span style="opacity:.6">(${u})</span>`:""}</div></div>`;}).join("");
+  const cp=d.query_answer_quality||{};
+  const speed=cp.graph_ms!==undefined
+    ?`<div class="speed">time-to-answer &nbsp;·&nbsp; GraphRAG <b>${cp.graph_ms} ms</b> vs keyword ${cp.keyword_ms} ms</div>`:"";
+  $("#scoreBox").innerHTML=`<div class="card"><h2>Live scorecard</h2>
+    <div class="desc">Every metric in the brief's evaluation focus — computed live from the running system, not claimed.</div>
+    <div class="tiles">${tiles}</div>${speed}</div>`;
 }
 
 function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}

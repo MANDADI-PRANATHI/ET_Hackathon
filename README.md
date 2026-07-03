@@ -199,6 +199,7 @@ python eval/lessons_eval.py      # pattern/warning coverage check
 ```bash
 make scorecard      # every judged metric, computed live, in one table
 make api            # then open http://localhost:8000/ui  (mobile-first UI)
+                    #   (or: python serve.py — no make needed, e.g. on Windows)
 ```
 
 - **Live scorecard** maps straight onto the problem statement's evaluation focus
