@@ -25,81 +25,67 @@ Submission target: **22 July 2026**.
 5. **Degrade gracefully.** A missing API key, DB, or optional dependency must
    never crash a path that doesn't need it. The structured-only path runs on
    Level 0 deps alone.
-6. **Local models first, cloud LLM last.** Retrieval quality (finding and
-   ranking evidence), every agent verdict, and confidence scoring must never
-   *require* a cloud API call — they run on local embeddings/reranker and plain
-   code. The cloud/local LLM is an optional narrative layer on top, never the
-   thing that makes an answer correct. See "Offline-first architecture" below.
+6. **Plain code before a model call, every time.** Retrieval, every agent
+   verdict, and confidence scoring run on plain code — they never *require* a
+   cloud API. The cloud/local LLM is an optional narrative layer on top, never
+   the thing that makes an answer correct.
+7. **Justify every dependency against a measured need, not a hypothetical one.**
+   A hybrid embeddings+reranker retrieval stack was built, benchmarked against
+   plain keyword search, found to score identically on this system's own eval,
+   and was removed — see "Why keyword search, not embeddings?" below. Don't
+   re-add ML-model complexity to retrieval without first showing a real
+   benchmark where it changes the answer.
 
-## Offline-first architecture — why, and what it means for new code
-Real deployment target: plants that legally cannot send drawings or incident
-data to a foreign cloud (a genuine constraint for regulated Indian sites, not
-a hypothetical). So the design keeps the LLM's blast radius small on purpose:
+## Why keyword search, not embeddings? (a decision, not an oversight)
+Retrieval used to be a hybrid pipeline: BM25 + on-device embeddings, fused with
+Reciprocal Rank Fusion, then reranked by a local cross-encoder. It was measured
+against plain keyword search on this project's own benchmark
+(`eval/copilot_bench.py`, 8 questions) and **scored identically — 1.0
+groundedness, 1.0 cross-functional discovery, 1.0 asset-spotting, both ways.**
 
-- **Retrieval is local hybrid search**, not a vector-DB-plus-API pattern:
-  BM25 keyword + on-device embeddings (`providers/embeddings.LocalEmbedder`)
-  fused by Reciprocal Rank Fusion, then reranked by a local cross-encoder
-  (`LocalReranker`). See `retrieval/knowledge.py::search_passages`. All three
-  stages are free, on-device, and the sole source of "which evidence is
-  correct" — the LLM never decides that.
-- **The copilot works with `llm=None`.** `copilot/answer.py::Copilot.answer`
-  falls back to `_extractive_answer` — a deterministic, role-framed composition
-  of the same cited evidence — whenever no LLM is configured *or* a call
-  fails. This is not a degraded "sorry" path; it's a first-class mode
-  (`Answer.mode == "extractive"`), and the UI treats it as such (⚡ badge, not
-  an error state).
-- **Answer faithfulness is measured locally too.** `copilot/faithfulness.py`
-  scores whether an answer's claims are grounded in the cited evidence using
-  embedding cosine similarity — no LLM-as-judge, no network call. It's an
-  honest, narrower proxy (catches off-topic/hallucinated-topic answers; too
-  coarse for fine-grained numeric fact-checking — that's what the
-  deterministic agents are for) and the module docstring says so explicitly.
-- **Embeddings are cached, not recomputed.** `scripts/embed.py` embeds every
-  passage once and writes the vectors back into `data/staging/*.json`.
-  `KnowledgeBase.ensure_embeddings()` only backfills what's missing. The API
-  (`api/app.py::_load`) caps how much it will auto-embed at startup
-  (`_MAX_STARTUP_EMBED`) so launch never silently takes minutes — beyond that
-  threshold it starts on keyword search alone and tells you to run
-  `make embed`. **Ingestion must preserve this cache**: `ingest_corpus` and the
-  `--path` single-file mode both call `_carry_forward_embeddings()` before
-  writing a re-ingested `StagedDoc`, matching cached vectors by
-  `(chunk id, exact text)` so re-running `make ingest` after adding new
-  documents never wipes out embeddings already paid for. If you touch the
-  ingestion write path, keep this call in place — its regression test
-  (`tests/test_embed_cache.py`) exists because this exact bug shipped once.
-- **The remaining cloud-shaped surface is narrow and swappable**: prose fact
-  extraction (`ingest/extract.py`), drawing/P&ID reading
-  (`ingest/readers/drawing.py`), and the final answer's prose
-  (`copilot/answer.py`). All three already work with `LLM_PROVIDER=ollama` +
-  a local model (e.g. `qwen2.5:7b`, vision `qwen2.5vl:7b`) with **no code
-  change** — the provider switch (`providers/llm.py::get_llm`) is the whole
-  point. Prefer strengthening the local/Ollama path over adding
-  Gemini-specific logic.
+The reason it made no difference: most of an answer's correctness comes from
+graph traversal (`KnowledgeBase.spot_assets` + `asset_facts`), not passage
+ranking — the system finds the asset tag in the question and pulls *every*
+connected fact from the graph, which is an exact lookup, not a search problem.
+Passage retrieval is a secondary layer on top, and on this corpus keyword
+search was good enough for it.
+
+Given no measured quality gain, the hybrid stack was stripped back because it
+cost real things: ~4 GB of downloaded models (torch, transformers, two
+HuggingFace model checkpoints), 20-30s of model-loading at every startup, a
+whole embedding-cache subsystem (`scripts/embed.py`, backfill logic, a
+carry-forward-on-reingest fix for a bug that subsystem itself introduced), and
+a local "faithfulness" scorer that duplicated ground already covered by the
+deterministic agents. None of that complexity was earning its keep. **If you
+'re tempted to re-add embeddings/reranking to retrieval, run
+`eval/copilot_bench.py` before and after — only keep it if the numbers actually
+move.** (`git log` has the removed implementation if it's ever needed as a
+reference: see the commit that reintroduces plain keyword search.)
 
 ## Architecture (data flow)
 ```
 corpus files ──▶ ingest (Level 1) ──▶ data/staging/*.json ──▶ build-graph (Level 2) ──▶ Neo4j
-                    router                StagedDoc              GraphModel (merge+resolve)  graph + vector index
-                    readers               (nodes/edges/chunks,    metrics + viz export (JSON)       │
-                    patterns (regex)       embeddings cached)                                       ▼
-                    extract (AI, optional)                                  copilot (Level 3) · agents (Level 4)
-                    chunk / embed (embed.py)                                scorecard (Level 5)
+                    router                StagedDoc                GraphModel (merge+resolve)  graph + vector index
+                    readers               (nodes/edges/chunks)     metrics + viz export (JSON)       │
+                    patterns (regex)                                                                ▼
+                    extract (AI, optional)                                    copilot (Level 3) · agents (Level 4)
+                    chunk                                                     scorecard (Level 5)
 
 Level 2 note: the merge/resolution logic lives in a storage-free `GraphModel`
 (pure, testable); the Neo4j writer just persists it. `build_graph.py` always
 produces the model, metrics, and viz export, and writes to Neo4j when reachable.
 
-Level 3 note: retrieval is LOCAL hybrid search (BM25 + embeddings, RRF-fused,
-cross-encoder reranked) — no API call. The LLM (cloud or local via Ollama) only
-writes the final prose; without one, a deterministic extractive answer is
-composed from the same cited evidence instead.
+Level 3 note: retrieval is graph traversal + plain keyword search (BM25) — no
+API call, no ML model to load. The LLM (cloud or local via Ollama) only writes
+the final prose; without one, a deterministic extractive answer is composed
+from the same cited evidence instead.
 ```
 
 ### The staging contract (`brain/schema.py`) — the spine of the system
 Level 1 turns every document into a `StagedDoc` with three lists:
 - **`NodeFact`** — a graph node, keyed by `(label, key -> value)`, with `properties`.
 - **`EdgeFact`** — a link between two nodes by their `(label, value)`.
-- **`Chunk`** — a searchable passage (embedding attached when available).
+- **`Chunk`** — a searchable passage.
 
 Every `NodeFact`/`EdgeFact` has `source: SourceRef`, `confidence: float`, and
 `extractor` ∈ {`structured`, `regex`, `ai`, `vision`}. Level 2 merges NodeFacts
@@ -112,26 +98,24 @@ across documents by `(label, value)`; it never needs to know how a fact was foun
 | `ontology.py` | Load/validate the swappable ontology profile; expose labels, patterns, PII labels. |
 | `schema.py` | The staging data model (NodeFact/EdgeFact/Chunk/StagedDoc). |
 | `providers/llm.py` | Gemini/Ollama text brain behind `get_llm()`. |
-| `providers/embeddings.py` | Local BGE embedder + reranker (lazy). |
-| `stores/neo4j_init.py` | Create constraints + vector index from the ontology. |
+| `stores/neo4j_init.py` | Create constraints + a vector-index schema stub from the ontology (unused by the current retrieval path — a future Neo4j-backed semantic search hook, not required for anything today). |
 | `ingest/patterns.py` | Deterministic regex extraction + tag/reg normalisation. Priority-resolved, non-overlapping; rejects document-reference false positives. |
 | `ingest/chunk.py` | Paragraph-aware passage windowing with overlap. |
 | `ingest/confidence.py` | Base confidences per extractor; agreement boost; final answer-confidence blend. |
 | `ingest/readers/` | `structured` (CSV→facts, no AI), `text` (.txt/.eml, stdlib), `document` (Docling PDFs, lazy), `drawing` (vision P&ID, lazy/injectable). |
 | `ingest/router.py` | Folder→doc_type, extension→reader, stable doc ids. |
 | `ingest/extract.py` | AI prose extraction — schema-fenced, evidence-quoted, confidence-capped, LLM injected. |
-| `ingest/pipeline.py` | Orchestrates route→read→extract→chunk→embed→stage. `_carry_forward_embeddings` protects the embed cache across re-ingestion (see offline-first section above). |
-| `search/keyword.py` | BM25 baseline ("traditional search") for the time-to-answer metric. |
+| `ingest/pipeline.py` | Orchestrates route→read→extract→chunk→stage. |
+| `search/keyword.py` | BM25 keyword search — the passage-retrieval engine (not just a "traditional search" baseline). |
 | `graph/model.py` | In-memory merged graph: MERGE by (label, canonical value), property precedence by extractor tier, confidence via agreement, provenance. Storage-free & testable. |
 | `graph/resolve.py` | Entity resolution: canonicalisation, `same_asset`, `base_tag`, `propose_merges` (no over-merge of A/B backups). |
 | `graph/metrics.py` | Linkage completeness (asset coverage), orphans, needs-review counts. |
 | `graph/export.py` | Clean asset-centric JSON for the demo graph visualisation. |
 | `stores/graph_writer.py` | Persist the merged graph into Neo4j (lazy, provenance onto elements). |
-| `retrieval/knowledge.py` | GraphRAG KnowledgeBase: spot assets (tag/name/class), graph-neighbourhood evidence, **local hybrid passage search** (BM25 + dense, RRF-fused, cross-encoder reranked — `search_passages`), combined retrieve. `ensure_embeddings()` backfills missing vectors in memory. Runs on the in-memory graph — no DB needed. |
+| `retrieval/knowledge.py` | GraphRAG KnowledgeBase: spot assets (tag/name/class), graph-neighbourhood evidence, keyword passage search (`search_passages`), combined `retrieve`. Runs on the in-memory graph — no DB needed. |
 | `copilot/answer.py` | Cited, confidence-scored, role-aware answers; LLM injected and **optional** — falls back to a deterministic `_extractive_answer` from the same evidence when no LLM is configured or a call fails (`Answer.mode`). |
-| `copilot/faithfulness.py` | Local, embedding-based answer-faithfulness scorer — no LLM judge, no API call. Scoped honestly: catches off-topic hallucination, not fine-grained numeric errors. |
 | `copilot/roles.py` | Role framing + PII gating (redacts Person for non-cleared roles). |
-| `api/app.py` | FastAPI: /ask, /graph, /roles, /health, /compliance, /rca, /warnings, /scorecard, /assets, /ui. Loads local embedder+reranker eagerly (best-effort) and the cloud/local LLM best-effort at startup; `SUTRADHAR_SKIP_LOCAL_MODELS=1` skips real model loads (used by tests). |
+| `api/app.py` | FastAPI: /ask, /graph, /roles, /health, /compliance, /rca, /warnings, /scorecard, /assets, /ui. Builds the knowledge base once at startup; the LLM is loaded best-effort. |
 | `agents/compliance.py` | Hybrid compliance: LLM authors a checkable rule (`parse_clause`), plain code decides MET/GAP/UNKNOWN (`check_requirement`); evidence package + NCR/CAPA drafts. Curated RULESET ships with the profile. |
 | `stores/readings.py` | Readings adapter (ReadingsSource protocol; FileReadingsSource replay) + deterministic trend `analyze`. OPC-UA/MQTT implement the same interface. |
 | `agents/rca.py` | RCA agent: fuse graph history + readings → ranked cited findings, predictive recommendation, optimised schedule. Signals are code; narrative is optional LLM. |
@@ -140,46 +124,33 @@ across documents by `(label, value)`; it never needs to know how a fact was foun
 ## Conventions
 - Every module starts with a plain-English docstring explaining *why*.
 - `from __future__ import annotations` at the top; type-hint everything.
-- Heavy/optional SDKs (neo4j, docling, google-genai, ollama, sentence-transformers)
-  are **imported lazily inside functions**, so importing a module never forces a
-  dependency the current path doesn't use.
+- Heavy/optional SDKs (neo4j, docling, google-genai, ollama) are **imported
+  lazily inside functions**, so importing a module never forces a dependency
+  the current path doesn't use.
 - Comments explain intent for a non-expert reader, matching the existing style.
-- Keep the tool stack small — a new dependency must earn its place (demo risk).
+- Keep the tool stack small — a new dependency must earn its place, and prove
+  it with a benchmark, not just a plausible-sounding argument (see "Why
+  keyword search, not embeddings?" above for what happens when this rule is
+  followed after the fact).
 
 ## How to run
 ```bash
 python run.py                                 # one command: setup + launch (see README)
 make up && make init && make synth            # infra + schema + synthetic corpus (Level 0)
-make ingest-structured                        # Level 1 without AI/embeddings (L0 deps only)
+make ingest-structured                        # Level 1 without AI (L0 deps only)
 make ingest                                    # Level 1 full (needs L1 deps + LLM configured)
-make embed                                     # cache passage embeddings once (local, no API)
 python eval/extraction_eval.py                 # entity-extraction accuracy benchmark
 python -m pytest tests/ -q                     # regression tests (L0 deps only)
 ```
 
 ## Testing
-- `tests/` runs on Level 0 deps — no Neo4j/LLM/docling/**real transformer
-  models** needed. Uses stubbed LLMs, stubbed embedders/rerankers, and tmp
-  files. Keep it that way so tests stay fast and always runnable.
+- `tests/` runs on Level 0 deps — no Neo4j, no LLM, no docling, no ML model
+  needed. Uses stubbed LLMs and tmp files. Keep it that way so tests stay fast
+  and always runnable (the suite regressed to 100s+ once, when a local
+  embedding model got loaded eagerly in a test fixture — see the "Why keyword
+  search" note above for the fuller story of why that stack is gone now).
 - Service/LLM-dependent code is exercised via injection (pass a stub) rather than
-  by mocking network calls. `tests/test_offline.py` shows the pattern for local
-  models: `StubEmbedder`/`StubReranker` with hand-picked vectors, not a real
-  `sentence-transformers` load.
-- `tests/test_api.py` sets `SUTRADHAR_SKIP_LOCAL_MODELS=1` before importing the
-  app so `TestClient` doesn't eagerly load real embedding/reranker models (this
-  regressed the suite from <1s to 100s+ once — keep the env var set in any new
-  API test fixture). One exception is deliberate: the `/scorecard` route always
-  computes the real, embedding-backed faithfulness metric, so that one test is
-  allowed to be slower — it's validating the real number, not the wiring.
-- If you add a benchmark/eval script that needs a real local model
-  (`LocalEmbedder`/`LocalReranker`), wire its regression-suite counterpart in
-  `tests/test_levelN.py` via `monkeypatch.setattr` on the eval module's
-  function (see `test_level5.py::test_scorecard_has_all_metrics...`), not by
-  calling the real model in the fast suite.
-- `tests/test_embed_cache.py` pins a real regression: re-ingesting the corpus
-  must never discard cached embeddings for unchanged chunks. Don't remove the
-  `_carry_forward_embeddings()` call in `ingest/pipeline.py` without keeping
-  this test green.
+  by mocking network calls.
 
 ## Known limitations / future work
 - Docling per-page char mapping is not yet wired, so PDF citations resolve to the
@@ -189,12 +160,9 @@ python -m pytest tests/ -q                     # regression tests (L0 deps only)
   by design.
 - Vision drawing reader is injectable and import-safe but unverified against a
   real P&ID (needs a vision model). Day-1 de-risk spike in PLAN.md §10.
-- The local faithfulness scorer (`copilot/faithfulness.py`) is a topical-grounding
-  proxy, not a fine-grained fact-checker — documented explicitly in its module
-  docstring so it isn't oversold. It reliably catches an answer about the wrong
-  topic/asset; it will not catch a right-topic answer with one wrong number.
-- Embedding 6k+ passages on CPU takes ~2–3 minutes the *first* time
-  (`make embed`); this is a one-time, fully local cost (cached to
-  `data/staging/*.json` afterwards), not a per-request one. Startup
-  auto-embeds only up to `_MAX_STARTUP_EMBED` (500) missing chunks to keep
-  `python run.py` / `make api` launches fast.
+- The Ollama path (`LLM_PROVIDER=ollama`) is code-complete but has never been
+  run against a live Ollama server in development — treat it as untested, not
+  as a demonstrated capability, until it's actually exercised.
+- Benchmark scores in `eval/` are self-authored (the same person who built the
+  system wrote the test questions) — treat "1.0" as "the pipeline works as
+  designed," not as independent proof of generalization to unseen questions.

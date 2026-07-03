@@ -28,20 +28,17 @@ verify:    ## health-check all services + the LLM provider
 synth:     ## generate synthetic work orders / inspections / permits / NCRs
 	python scripts/generate_synthetic.py
 
-install-l1: ## install Level 1 dependencies (docling + embeddings)
+install-l1: ## install Level 1 dependencies (docling)
 	python -m pip install -r requirements-l1.txt
 
-ingest:    ## Level 1: read corpus -> extract facts -> data/staging/ (full: AI + embeddings)
+ingest:    ## Level 1: read corpus -> extract facts -> data/staging/ (full: AI prose extraction)
 	python scripts/ingest.py
 
-ingest-structured: ## Level 1 without AI/embeddings (runs with only Level 0 deps)
+ingest-structured: ## Level 1 without AI (runs with only Level 0 deps)
 	python scripts/ingest.py --structured-only
 
 build-graph: ## Level 2: load staged facts into Neo4j (merge duplicates, validate links)
 	python scripts/build_graph.py
-
-embed:     ## cache passage embeddings for instant semantic search (one-time cost)
-	python scripts/embed.py
 
 install-l3: ## install Level 3 dependencies (FastAPI + uvicorn)
 	python -m pip install -r requirements-l3.txt
@@ -73,5 +70,5 @@ test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
 .PHONY: demo up down logs install install-l1 install-l3 init verify synth ingest \
-        ingest-structured build-graph embed copilot api compliance rca lessons \
+        ingest-structured build-graph copilot api compliance rca lessons \
         scorecard eval test

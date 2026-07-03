@@ -69,12 +69,6 @@ def _lessons():
     return {"value": lessons_eval.evaluate()["score"]}
 
 
-def _faithfulness():
-    import faithfulness_eval
-    r = faithfulness_eval.evaluate()
-    return {"value": r["discrimination_accuracy"], "mean_faithful_score": r["mean_faithful_score"]}
-
-
 def build_scorecard() -> dict:
     return {
         "entity_extraction_accuracy": _safe(_extraction),
@@ -85,9 +79,6 @@ def build_scorecard() -> dict:
             lambda: {"value": _copilot()["cross_functional_rate"]}),
         "rca_quality": _safe(_rca),
         "lessons_quality": _safe(_lessons),
-        # Computed entirely by the local embedding model — zero API calls, so
-        # this number is reproducible even with no internet connection at all.
-        "answer_faithfulness_offline": _safe(_faithfulness),
     }
 
 
@@ -127,7 +118,6 @@ def main() -> None:
         ("Cross-functional discovery rate", _fmt(card["cross_functional_discovery"])),
         ("RCA quality", _fmt(card["rca_quality"])),
         ("Lessons-learned quality", _fmt(card["lessons_quality"])),
-        ("Answer faithfulness (offline, no API)", _fmt(card["answer_faithfulness_offline"])),
     ]
     for name, val in rows:
         print(f"  {name:<42}{val:>12}")

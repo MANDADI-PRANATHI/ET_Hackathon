@@ -128,7 +128,7 @@ is judged-criteria-neutral:
 
 | Criterion | Weight | What earns it |
 |---|---|---|
-| **Innovation** | 25% | GraphRAG combining graph traversal + meaning search (not "PDF search with a chatbot"); hybrid deterministic/AI extraction with per-fact confidence provenance; hybrid AI-parses/code-decides compliance engine; proactive warning agent that pushes instead of waiting; in-product live scorecard that self-grades against the brief's own evaluation criteria in real time |
+| **Innovation** | 25% | GraphRAG combining graph traversal + keyword search (not "PDF search with a chatbot"); hybrid deterministic/AI extraction with per-fact confidence provenance; hybrid AI-parses/code-decides compliance engine; proactive warning agent that pushes instead of waiting; in-product live scorecard that self-grades against the brief's own evaluation criteria in real time |
 | **Business Impact** | 25% | Every number in the pitch traces to the brief's own cited stats (35% time lost, 18–22% downtime, 25% retiring workforce); compliance evidence packages map to real Indian statutes (Factory Act, OISD, PESO); fully offline-capable deployment story matters concretely to regulated Indian plants that legally cannot send drawings/incident data to a foreign cloud |
 | **Technical Excellence** | 20% | Standards-grounded ontology (ISA-95/ISO 14224/IEC 81346); asset-centric graph with real entity-resolution (alias lists + similarity + human-confirm, deliberately *not* over-merging near-duplicate equipment); every fact traceable to its exact source sentence; automated eval harness (extraction accuracy, answer quality, linkage completeness) built incrementally, not bolted on at the end |
 | **Scalability** | 15% | Swappable industry ontology proven live in the demo (flip from oil & gas to manufacturing on one config change); adapter pattern for live sensor feeds (OPC-UA/MQTT-shaped) so production deployment is a plug, not a rewrite; ingestion pipeline designed for incremental updates at any volume, not a one-shot batch job |
@@ -170,47 +170,59 @@ the inclusions:
 |---|---|---|
 | **Docling** | Reads PDFs, Word, spreadsheets, scanned pages into clean text/tables | Saves weeks of layout-parsing code |
 | **Vision-capable LLM (cloud or local via Ollama)** | Reads P&IDs and scanned drawings directly as images, extracting tags/lines/instrument numbers | Avoids building a bespoke CV pipeline (symbol/line detection) that would eat most of the runway for marginal gain — a pragmatic way to satisfy the "computer vision" ask, and Ollama's Qwen-VL/GLM-OCR make it fully offline-capable too |
-| **Local embeddings + reranker (BGE, via `sentence-transformers`)** | Local hybrid passage search: BM25 keyword + dense cosine, fused by Reciprocal Rank Fusion, then cross-encoder reranked | Free, on-device, zero API latency or cost — and this is the retrieval engine judges see in the demo, not a placeholder for one |
-| **Neo4j** | Stores facts as nodes/edges, asset-centric; can also host a vector index | Optional for the demo — the copilot and every agent run identically on an in-memory `GraphModel`, so the whole product works with zero database running |
+| **BM25 keyword search** | Finds the passages relevant to a question | Free, zero dependency, and — measured directly, see below — scores identically to a much heavier alternative on this system's own benchmark |
+| **Neo4j** | Stores facts as nodes/edges, asset-centric | Optional for the demo — the copilot and every agent run identically on an in-memory `GraphModel`, so the whole product works with zero database running |
 | **FastAPI** | Backend server + the single-file mobile UI's API surface | Standard, fast, typed, no framework lock-in |
 | **A time-series table + readings adapter** | Holds recent equipment readings (temperature, vibration, pressure); a replayed data file feeds it for the demo, real OPC-UA/MQTT plugs into the same slot | Makes "real-time operating conditions" concrete without needing a real plant feed |
 | **A plain-code compliance rule checker** | Executes the parsed rule against actual dates/records/readings and returns a hard met/gap/unknown | The pass/fail decision is never left to a model's guess — this is the credibility anchor for the compliance agent |
-| **A local, embedding-based faithfulness scorer** | Checks whether an answer's claims are grounded in the cited evidence | Gives the scorecard a real "answer quality" number with **zero LLM-judge calls** — the evaluation doesn't depend on the same API the product doesn't depend on |
 
 **Cut from the original plan, on purpose, once the trade-off was concrete:**
-- **LlamaIndex** — retrieval stayed as our own ~150 lines of hybrid-search code
-  (`retrieval/knowledge.py`). Fewer abstraction layers means the demo can show
-  *exactly* how an answer was assembled, and it's the difference between
-  depending on a framework's embedding/reranker wiring and owning it outright.
+- **LlamaIndex** — retrieval stayed as our own ~100 lines of keyword-search
+  code (`retrieval/knowledge.py`). Fewer abstraction layers means the demo can
+  show *exactly* how an answer was assembled.
 - **A generic agent-orchestration framework** (e.g. LangGraph) — the three
   Level 4 agents (`agents/compliance.py`, `agents/rca.py`, `agents/lessons.py`)
   are each a short, readable Python function. None of them needed multi-step
   planning or tool-calling loops; adding a framework would have been
   complexity with no corresponding capability.
-- **RAGAS** — its faithfulness score is LLM-judge-based, which would have made
+- **RAGAS** — its faithfulness score is LLM-judge-based, which would make
   *evaluating* the product depend on the same cloud call the product is
-  designed to minimise. Replaced with the local embedding-based scorer above.
+  designed to minimise.
 - **Next.js** — the UI is one dependency-free HTML/CSS/JS file
   (`web/index.html`) served as a static mount by FastAPI. Lower demo risk (no
   build step, nothing to fail to compile) and it's still mobile-first with
   voice input; a Next.js rewrite remains a drop-in upgrade if ever needed at
   a larger scale.
+- **A hybrid embeddings + reranker retrieval stack** (BM25 + on-device
+  embeddings, fused by Reciprocal Rank Fusion, reranked by a local
+  cross-encoder) — this was actually built, not just considered. It was
+  benchmarked against plain keyword search on this project's own 8-question
+  eval and **scored identically: 1.0 groundedness, 1.0 cross-functional
+  discovery, both ways.** The reason: most of an answer's correctness comes
+  from graph traversal (an exact lookup of facts connected to the named
+  asset), not from passage ranking — so the fancier retriever had nothing
+  left to improve on this corpus. It was removed once that was measured,
+  because it cost real things with no offsetting benefit: ~4 GB of downloaded
+  ML models, 20-30s of model-loading at every startup, and a caching
+  subsystem that introduced its own bug (a cache-invalidation issue) requiring
+  its own fix. **The lesson generalizes**: a feature that sounds sophisticated
+  is not automatically worth its complexity — measure the actual effect on the
+  actual benchmark before keeping it.
 
 ### Local-first retrieval, Neo4j optional
 
 The original plan's "two stores" (a vector index and a graph database) are both
 real in production, but the demo doesn't require either running:
 
-- **Meaning search** — BM25 + local embeddings + local reranker, entirely
-  in-process. Neo4j's vector index is available for scale but not on the
-  critical path.
+- **Passage search** — plain BM25 keyword search, entirely in-process, no
+  model to load.
 - **Connections** — the in-memory `GraphModel` (`graph/model.py`) is what the
   copilot and every Level 4 agent actually query. `stores/graph_writer.py`
   persists the same model into Neo4j when it's reachable, for querying the
   graph directly (Cypher) at larger scale — but nothing in the demo path
   requires the database to be up.
 
-The copilot uses graph traversal and hybrid search together — search finds
+The copilot uses graph traversal and keyword search together — search finds
 candidate passages, the graph supplies the relationships that make an answer
 *explainable*, not just plausible — and it does so identically whether or not
 Neo4j, or even a cloud LLM, is reachable.
@@ -403,15 +415,15 @@ investigation reports, OISD standards, OSHA PSM, OEM manuals), not synthetic-onl
 - It runs **fully offline on local hardware**, which is a genuine deployment requirement
   for the regulated Indian plants this problem statement is written for — not a budget
   trick, a business fit. This isn't just the LLM behind a switch: **retrieval itself
-  is local hybrid search** (BM25 + on-device embeddings + a local reranker), every agent
-  verdict is plain code, and the copilot composes a fully readable, cited answer with
-  zero LLM calls if none is configured. A judge can pull the network cable and the
-  product keeps working — few "AI platform" entries can make that claim honestly.
+  is plain code** (graph traversal + keyword search), every agent verdict is plain
+  code, and the copilot composes a fully readable, cited answer with zero LLM calls
+  if none is configured. A judge can pull the network cable and the product keeps
+  working — few "AI platform" entries can make that claim honestly, and this one
+  keeps it true without needing any ML model beyond the optional cloud/local LLM.
 - The whole engine swaps industries on one config file, proven live — Scalability is
   demonstrated, not claimed.
-- Even the **evaluation** doesn't depend on a cloud API: the answer-faithfulness metric
-  is computed by a local embedding model, so every number on the scorecard is
-  reproducible with no internet connection at all.
+- Even the **evaluation** doesn't depend on a cloud API: every scorecard number is
+  computed from local benchmarks with zero network calls at all.
 
 ---
 

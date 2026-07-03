@@ -60,7 +60,7 @@ class Answer:
     signals: dict = field(default_factory=dict)
     source_doc_types: List[str] = field(default_factory=list)
     mode: str = "generative"          # "generative" (LLM) | "extractive" (local, no LLM)
-    retrieval_method: str = "keyword"  # keyword | dense | hybrid(+rerank)
+    retrieval_method: str = "keyword"
 
 
 _ROLE_OPENERS = {
@@ -85,12 +85,9 @@ def _linkage_score(n_graph_facts: int) -> float:
 
 
 class Copilot:
-    def __init__(self, kb: KnowledgeBase, llm, embedder=None, reranker=None,
-                 max_graph: int = 12, max_passages: int = 5):
+    def __init__(self, kb: KnowledgeBase, llm, max_graph: int = 12, max_passages: int = 5):
         self.kb = kb
         self.llm = llm
-        self.embedder = embedder
-        self.reranker = reranker
         self.max_graph = max_graph
         self.max_passages = max_passages
         self._person_names = [
@@ -145,8 +142,7 @@ class Copilot:
         return opener + "\n\n" + "\n".join(lines)
 
     def answer(self, question: str, role: str = DEFAULT_ROLE) -> Answer:
-        r = self.kb.retrieve(question, top_k=self.max_passages,
-                             embedder=self.embedder, reranker=self.reranker)
+        r = self.kb.retrieve(question, top_k=self.max_passages)
         items = self._select(r)
         context, citations = self._context_block(items, role)
         signals = self._confidence(r, items)

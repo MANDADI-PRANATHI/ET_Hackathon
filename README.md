@@ -11,8 +11,8 @@ python run.py
 ```
 This installs the few packages it needs, generates the sample plant, reads the
 documents, and opens the app at **http://localhost:8000/ui**. That's a complete,
-self-contained working prototype. (Add `--full` for the heavy pipeline: real-PDF
-reading + semantic search.)
+self-contained working prototype — no heavy ML models to download. (Add `--full`
+for the heavier pipeline: real-PDF reading + AI prose extraction.)
 
 Then test it:
 ```bash
@@ -22,23 +22,24 @@ make scorecard    # every judged metric, computed live
 
 ## 🔌 Runs fully offline — the LLM is optional
 The system's core intelligence — finding the right evidence, connecting it
-across departments, and every agent's verdict — runs on **local models and
-plain code**, not a cloud API:
+across departments, and every agent's verdict — runs on **plain code**, not a
+cloud API. No local ML models to download either: retrieval is plain keyword
+search, deliberately kept simple (see "Why keyword search, not embeddings?" in
+[CLAUDE.md](CLAUDE.md) for the reasoning):
 
 | Capability | Needs a cloud call? | Runs on |
 |---|---|---|
 | Structured data, tags, dates, reg-refs | **No** | plain code + regex |
-| Finding & ranking the right evidence | **No** | local BM25 + embeddings + reranker |
+| Finding & ranking the right evidence | **No** | keyword search (BM25) |
 | Compliance verdict, RCA trends, confidence score | **No** | plain code |
 | Answer composed with no LLM configured | **No** | local template over cited evidence |
 | Prose extraction, drawing reading, final narrative | Optional | cloud LLM **or** a local model via Ollama |
 
-Run `make embed` once to cache semantic search locally (small one-time model
-download, then instant forever). With no API key at all, `python run.py` still
-gives cited, confidence-scored, hybrid-search answers — the cloud model only
-adds a polished paragraph on top. See the in-app **"How it works"** tab for the
-live version of this table, and [CLAUDE.md](CLAUDE.md) for why this matters for
-plants that legally can't send data to a foreign cloud.
+With no API key at all, `python run.py` still gives cited, confidence-scored
+answers — the cloud model only adds a polished paragraph on top. See the
+in-app **"How it works"** tab for the live version of this table, and
+[CLAUDE.md](CLAUDE.md) for why this matters for plants that legally can't send
+data to a foreign cloud.
 
 **Want to stress-test with a large plant?** The sample size scales:
 ```bash
@@ -131,8 +132,7 @@ One unreadable file is skipped with a warning, never crashes the batch.
 
 **After adding files:**
 ```bash
-make ingest && make build-graph && make embed   # re-run; MERGE + embed cache
-                                                 # are both idempotent/incremental
+make ingest && make build-graph   # re-run; MERGE is idempotent — no duplication
 ```
 
 ---
@@ -142,9 +142,9 @@ Turns the messy corpus into clean, **source-stamped, confidence-scored** facts,
 staged as JSON for the graph build (Level 2).
 
 ```bash
-make install-l1          # Level 1 deps (docling, embeddings) — for the full path
+make install-l1          # Level 1 deps (docling) — for the full path
 make ingest-structured   # structured + regex only (runs on Level 0 deps, no AI)
-make ingest              # full: structured + regex + AI prose + embeddings
+make ingest              # full: structured + regex + AI prose extraction
 ```
 
 What it does, by the cheapest reliable method per fact:
@@ -189,23 +189,24 @@ duplication. (Runs fully without Neo4j: model, metrics, and export are always
 produced; the database load is attempted when reachable.)
 
 ## Level 3 — the Ask-Anything Copilot (GraphRAG)
-Answers plain-English questions using the graph **and** meaning-search together,
-with clickable citations, a computed confidence, and role-aware framing.
+Answers plain-English questions using the graph **and** keyword search
+together, with clickable citations, a computed confidence, and role-aware
+framing.
 
 ```bash
-make embed                                                            # cache embeddings once
 make copilot Q="Is PSV-110B overdue for its statutory inspection?"   # CLI
 make api                                                             # HTTP API (:8000/docs)
 python eval/copilot_bench.py                                         # judged metrics
 ```
 
 - **GraphRAG, not plain RAG**: spot the asset → pull its connected facts from the
-  graph → add meaning-matched passages → answer. This is what lets a maintenance
+  graph → add keyword-matched passages → answer. This is what lets a maintenance
   question be answered by a safety document (**cross-functional discovery**).
-- **Local hybrid retrieval**: BM25 keyword search + on-device embeddings are
-  fused with Reciprocal Rank Fusion, then a local cross-encoder reranks the
-  result — three retrieval stages, zero API calls. Falls back cleanly to
-  keyword-only if the local models aren't installed.
+  Most of an answer's correctness comes from this graph step (an exact lookup
+  of everything connected to the asset), not from passage ranking — which is
+  why retrieval is kept to plain keyword search rather than a heavier
+  embeddings/reranker pipeline: on this system's own benchmark the fancier
+  version measured no improvement, so the simpler one won.
 - **Works with no LLM at all**: if no cloud/local model is configured (or a
   call fails), the copilot composes a genuinely readable, role-framed answer
   directly from the same cited evidence (`mode: "extractive"`) instead of a
@@ -216,12 +217,13 @@ python eval/copilot_bench.py                                         # judged me
 - **Every claim is cited** back to a source document (and page where known).
 - **Role-aware** (technician / engineer / safety officer / auditor / operator),
   with personal data redacted for roles not cleared to see it.
-- Runs over the merged graph from `data/staging` — **no Neo4j required**.
+- Runs over the merged graph from `data/staging` — **no Neo4j required**, no
+  extra ML dependency required either.
 
 Current benchmark (synthetic corpus): groundedness **1.0**, cross-functional
-discovery **1.0**, asset-spotting **1.0** across 8 expert questions, local
-answer-faithfulness discrimination **1.0** (measured with zero API calls —
-see `eval/faithfulness_eval.py`).
+discovery **1.0**, asset-spotting **1.0** across 8 expert questions. (These
+questions were authored alongside the system, so treat "1.0" as "the pipeline
+works as designed" — not independent proof of quality on unseen questions.)
 
 ## Level 4a — Compliance & QMS agent
 Maps regulations against real records and flags gaps — the yes/no decision made
@@ -288,9 +290,6 @@ make api            # then open http://localhost:8000/ui  (mobile-first UI)
   compliance / warnings / scorecard panels.
 - **Generic engine**: swap the industry with one setting —
   `make verify ONTOLOGY_PROFILE=config/ontology/manufacturing.yaml`.
-- **Answer faithfulness, measured offline**: a local embedding-based scorer
-  checks whether the answer's claims are actually grounded in the retrieved
-  evidence — no LLM judge, no API call, fully reproducible with no internet.
 
 See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the full architecture diagram.
 
@@ -300,16 +299,14 @@ config/ontology/oil_and_gas.yaml   the asset-centric vocabulary (swap to change 
 src/brain/config.py                all settings (reads .env)
 src/brain/ontology.py              loads + validates the ontology
 src/brain/providers/llm.py         Gemini / Ollama switch
-src/brain/providers/embeddings.py  local embeddings + reranker (used from Level 1)
 src/brain/stores/neo4j_init.py     creates the graph schema
 src/brain/schema.py                the staging data model (facts + chunks)
 src/brain/ingest/                  Level 1: readers, patterns, extraction, pipeline
-src/brain/search/keyword.py        BM25 baseline ("traditional search")
+src/brain/search/keyword.py        BM25 keyword search (also the passage-retrieval engine)
 src/brain/graph/                   Level 2: merge model, resolution, metrics, export
 src/brain/stores/graph_writer.py   persist the merged graph into Neo4j
-src/brain/retrieval/knowledge.py   Level 3: local hybrid GraphRAG retrieval (BM25+dense+rerank)
+src/brain/retrieval/knowledge.py   Level 3: GraphRAG retrieval (graph + keyword search)
 src/brain/copilot/answer.py        Level 3: cited/confidence/role-aware answers + extractive fallback
-src/brain/copilot/faithfulness.py  offline, embedding-based answer-faithfulness scorer
 src/brain/agents/                  Level 4: compliance, RCA, lessons-learned
 src/brain/stores/readings.py       readings adapter (time-series / OPC-UA-MQTT-shaped)
 src/brain/api/app.py               FastAPI backend (/ask /graph /compliance /rca /warnings /scorecard)
@@ -318,11 +315,10 @@ eval/scorecard.py                  Level 5: all judged metrics in one place
 scripts/verify_setup.py            health-check
 scripts/generate_synthetic.py      synthetic plant records + narrative docs (SCALE=N to grow it)
 scripts/ingest.py                  Level 1 ingestion CLI
-scripts/embed.py                   cache passage embeddings once (instant startup after)
 scripts/build_graph.py             Level 2 graph build CLI
 run.py                             one-command setup + launch
-eval/                              benchmarks (extraction, copilot, compliance, rca, lessons, faithfulness)
-tests/                             regression tests (Level 0 deps only; local models stubbed)
+eval/                              benchmarks (extraction, copilot, compliance, rca, lessons)
+tests/                             regression tests (Level 0 deps only)
 data/corpus/                       the document corpus (by type; includes real CSB/OSHA references)
 ```
 

@@ -30,7 +30,6 @@ from brain.ontology import load_ontology
 from brain.retrieval.knowledge import KnowledgeBase
 
 STAGING = Path(os.environ.get("STAGING_DIR", "data/staging"))
-_MAX_STARTUP_EMBED = 500   # embed on the fly up to this many missing vectors
 
 
 class AskRequest(BaseModel):
@@ -42,54 +41,17 @@ class _State:
     kb: KnowledgeBase | None = None
     copilot: Copilot | None = None
     llm_ready: bool = False
-    semantic_ready: bool = False
-    rerank_ready: bool = False
 
 
 state = _State()
 
 
 def _load() -> None:
-    """Build the knowledge base and wire in every model — local ones eagerly
-    (they're free and make retrieval itself work without any API call), the
-    cloud LLM only best-effort (it's optional narrative polish on top)."""
+    """Build the knowledge base (plain keyword search, no extra models to
+    load) and wire in the LLM best-effort — it's optional narrative polish;
+    /ask works without it via the copilot's extractive-answer fallback."""
     onto = load_ontology()
-
-    # Tests set this to skip loading real transformer models (keeps the suite
-    # on Level 0 deps and fast — see tests/test_api.py).
-    skip_local = os.environ.get("SUTRADHAR_SKIP_LOCAL_MODELS") == "1"
-
-    embedder = None
-    if not skip_local:
-        try:
-            from brain.providers.embeddings import LocalEmbedder
-            embedder = LocalEmbedder()
-            state.semantic_ready = True
-        except Exception:  # noqa: BLE001 - falls back to keyword search, still works
-            state.semantic_ready = False
-
-    reranker = None
-    if not skip_local:
-        try:
-            from brain.providers.embeddings import LocalReranker
-            reranker = LocalReranker()
-            state.rerank_ready = True
-        except Exception:  # noqa: BLE001 - falls back to un-reranked hybrid order
-            state.rerank_ready = False
-
-    state.kb = KnowledgeBase.load(STAGING, onto)   # embeddings wired in below
-    if embedder is not None:
-        missing = sum(1 for c in state.kb.chunks if not c.embedding)
-        if 0 < missing <= _MAX_STARTUP_EMBED:
-            state.kb.ensure_embeddings(embedder)
-        elif missing > _MAX_STARTUP_EMBED:
-            # Embedding thousands of passages live would make every launch slow.
-            # Keep boot fast; keyword search still covers 100% of passages, and
-            # `make embed` caches vectors to data/staging/*.json permanently.
-            print(f"[note] {missing} passages have no cached embedding — skipping "
-                 f"at startup to keep launch fast (keyword search still covers "
-                 f"them). Run `make embed` once to cache semantic vectors for "
-                 f"instant startup from then on.")
+    state.kb = KnowledgeBase.load(STAGING, onto)
 
     llm = None
     try:
@@ -98,7 +60,7 @@ def _load() -> None:
         state.llm_ready = True
     except Exception:  # noqa: BLE001 - copilot still works without a writer LLM
         state.llm_ready = False
-    state.copilot = Copilot(state.kb, llm, embedder=embedder, reranker=reranker)
+    state.copilot = Copilot(state.kb, llm)
 
 
 @asynccontextmanager
@@ -121,11 +83,9 @@ def create_app() -> FastAPI:
             "assets": len(state.kb.g.nodes_by_label("Asset")) if state.kb else 0,
             "chunks": len(state.kb.chunks) if state.kb else 0,
             "llm_ready": state.llm_ready,
-            "semantic_ready": state.semantic_ready,
-            "rerank_ready": state.rerank_ready,
-            # The system is fully functional offline: local hybrid retrieval +
-            # extractive answers need no API call. The cloud LLM only adds a
-            # polished narrative on top when it's reachable.
+            # Retrieval (keyword search + graph traversal) and every agent run
+            # without an API call; the LLM only adds a polished narrative on
+            # top when it's reachable — /ask still answers without one.
             "offline_capable": True,
         }
 

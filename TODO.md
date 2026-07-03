@@ -9,14 +9,14 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 
 ## Level status
 - ✅ **Level 0 — Foundation** (infra, ontology, provider switch, schema, synth data, health-check)
-- ✅ **Level 1 — Read & extract** (router, readers, deterministic + AI extraction, chunking, embeddings hook, benchmark, keyword baseline)
+- ✅ **Level 1 — Read & extract** (router, readers, deterministic + AI extraction, chunking, benchmark, keyword baseline)
 - ✅ **Level 2 — Knowledge graph build** (in-memory merge model, entity resolution, Neo4j writer, metrics, viz export, idempotent re-ingest)
 - ✅ **Level 3 — GraphRAG copilot** (retrieval, confidence, citations, role-aware, PII gating, API, mobile UI + voice, benchmark)
 - ✅ **Level 4a — Compliance & QMS agent** (hybrid rule engine, evidence package, NCR/CAPA drafting, gap-detection benchmark 1.0)
 - ✅ **Level 4b — Maintenance & RCA agent** (readings adapter, trend detection, RCA fusion, predictive rec, optimised schedule; eval 1.0)
 - ✅ **Level 4c — Lessons-learned & proactive warnings** (recurring patterns + multi-signal warning feed; eval 1.0)
 - ✅ **Level 5 — scorecard, UI, ontology-swap demo, architecture doc** (all judged metrics aggregated; mobile UI with voice + graph + agent panels; manufacturing profile; ARCHITECTURE.md)
-- ✅ **Post-L5 hardening — offline-first architecture** (local hybrid retrieval, extractive answers, embed caching, real documents, shadcn UI, one-command runner) — see dedicated section below
+- ✅ **Post-L5 polish** (shadcn UI, one-command runner, scale-up, ingest hardening, real documents, extractive answer fallback) — see dedicated section below. A hybrid embeddings+reranker retrieval stack was also built in this window, benchmarked against plain keyword search, found to make no difference, and **stripped back out** — see "Retrieval simplified" below.
 
 ---
 
@@ -28,7 +28,7 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ Readers: `structured` (CSV→facts, no AI), `text` (.txt/.eml), `document` (Docling, lazy), `drawing` (vision, injectable).
 - ✅ Router `ingest/router.py` (folder→doc_type, ext→reader, stable ids).
 - ✅ AI prose extraction `ingest/extract.py` (schema-fenced, evidence-quoted, confidence-capped, LLM injected).
-- ✅ Pipeline `ingest/pipeline.py` + `scripts/ingest.py` (`--structured-only`, `--path`, `--ai`, `--embeddings`).
+- ✅ Pipeline `ingest/pipeline.py` + `scripts/ingest.py` (`--structured-only`, `--path`, `--ai`).
 - ✅ Keyword baseline `search/keyword.py` (BM25, stdlib) for time-to-answer metric.
 - ✅ Extraction benchmark `eval/` (fixtures + labels + scorer) — currently **P/R/F1 = 1.0** on all types.
 - ✅ Narrative docs added to `generate_synthetic.py` (incident/email/SOP) → cross-functional links (PSV-110B touched by 7 doc types).
@@ -45,7 +45,7 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ Tests `tests/test_level2.py` — 10 passing (25 total).
 
 ## Level 3 — backend DONE (detail)
-- ✅ `retrieval/knowledge.py` — GraphRAG KnowledgeBase over in-memory graph: `spot_assets` (tag/name/class-synonym, precise queries stay precise), `asset_facts` (cited graph evidence), `search_passages` (embeddings cosine or keyword fallback), `retrieve` (combined).
+- ✅ `retrieval/knowledge.py` — GraphRAG KnowledgeBase over in-memory graph: `spot_assets` (tag/name/class-synonym, precise queries stay precise), `asset_facts` (cited graph evidence), `search_passages` (plain BM25 keyword search), `retrieve` (combined). A hybrid embeddings+reranker version of this was built, benchmarked, found to score identically, and removed — see "Retrieval simplified" below.
 - ✅ `copilot/answer.py` — cited answers, computed confidence (extraction+linkage+retrieval+agreement blend + label), honest "don't know", LLM injected.
 - ✅ `copilot/roles.py` — role framing (technician/engineer/safety_officer/auditor/operator) + PII gating (redacts Person for non-cleared roles, incl. citation snippets).
 - ✅ `scripts/copilot.py` CLI + Makefile `copilot`; `api/app.py` FastAPI (/ask,/graph,/roles,/health) + `install-l3`, `api` targets.
@@ -111,82 +111,54 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
   crashing the batch; drawing/vision files are skipped (not force-called) when
   `enable_vision=False` (the structured-only path).
 
-## Offline-first architecture hardening (this session) — DONE
-Directive: minimise dependence on Gemini; prefer fully local/offline where it
-doesn't compromise quality; push every judging criterion toward A+. Researched
-current best practice (local vision/OCR models via Ollama — Qwen-VL, GLM-OCR;
-hybrid dense+BM25+reranker retrieval, +17% Success@1 per published benchmarks;
-RAGAS faithfulness scope) before implementing. Verified every local model
-actually works in this environment (not just planned) before committing to the
-design.
+## Retrieval simplified — built hybrid, measured it, removed it
+Directive at the time: minimise dependence on Gemini; prefer fully local/
+offline where it doesn't compromise quality. Built a hybrid retrieval stack
+(BM25 + on-device embeddings, fused with Reciprocal Rank Fusion, reranked by a
+local cross-encoder), an embedding-cache subsystem, and a local
+"faithfulness" scorer. All of it worked. Then it was benchmarked against plain
+keyword search on this project's own 8-question eval and **scored
+identically — 1.0 groundedness, 1.0 cross-functional discovery, both ways.**
 
-- ✅ **Local hybrid retrieval** `retrieval/knowledge.py::search_passages` — BM25
-  keyword + dense embedding cosine, fused with Reciprocal Rank Fusion, then a
-  local cross-encoder (`LocalReranker`) reranks the pool. Every stage runs
-  on-device; `Retrieved.retrieval_method` reports which stages actually fired
-  (`keyword` / `dense` / `hybrid` / `hybrid+rerank`) for transparency.
-- ✅ **`KnowledgeBase.ensure_embeddings()`** — backfills missing chunk vectors in
-  memory at load time so semantic search works on any existing staged corpus
-  without re-running the full AI ingest pipeline.
-- ✅ **Local extractive answer mode** `copilot/answer.py::Copilot._extractive_answer`
-  — when no LLM is configured *or* a call fails, composes a genuinely readable,
-  role-framed answer directly from the same cited evidence (ranked by
-  confidence, citation numbers preserved) instead of a "sorry" message.
-  `Answer.mode` is `"extractive"` or `"generative"`; both carry identical
-  citations/confidence. Verified live: real hybrid+rerank retrieval + real
-  extractive answer end-to-end on the 6,257-passage corpus (High confidence
-  0.888–0.976, cross-functional across 5 doc types).
-- ✅ **Local, offline answer-faithfulness scorer** `copilot/faithfulness.py` +
-  `eval/faithfulness_eval.py` — embedding-cosine grounding check, zero LLM
-  judge, zero API call. Explicitly scoped in its own docstring: catches
-  off-topic/hallucinated-topic answers (discrimination accuracy 1.0 on 3
-  test cases), too coarse for fine-grained numeric fact-checking (that's what
-  the deterministic agents are for) — documented honestly rather than
-  oversold. Wired into `eval/scorecard.py` as `answer_faithfulness_offline`.
-- ✅ **Embedding cache**: `scripts/embed.py` computes embeddings once and
-  persists them into `data/staging/*.json`; `api/app.py::_load` only
-  auto-embeds up to `_MAX_STARTUP_EMBED` (500) missing chunks so launch stays
-  fast, otherwise prints a `make embed` hint and runs on keyword search until
-  then. `SUTRADHAR_SKIP_LOCAL_MODELS=1` lets tests skip real model loads.
-- 🐛 **Found and fixed a real bug**: re-running `make ingest` (even
-  `--structured-only`) overwrote every staged JSON from scratch, silently
-  discarding previously cached embeddings (a full 6,257-chunk re-embed cost
-  ~175s that should have been ~3s). Fixed with
-  `pipeline._carry_forward_embeddings()` (matches by chunk id + exact text,
-  so genuinely changed text is *not* stale-reused) called from both
-  `ingest_corpus` and the `--path` single-file CLI path before writing.
-  Regression-pinned in `tests/test_embed_cache.py`.
-- ✅ **Real, publicly-cited documents added**: two CSB investigation summaries
-  (Honeywell Geismar heat-exchanger rupture, Jan 2023; BP-Husky Toledo
-  relief-valve/SIS failure, Sep 2022) in `data/corpus/incidents/`, and the
-  actual OSHA 29 CFR 1910.119(j) mechanical-integrity text in
-  `data/corpus/regulations/` — every fact traces to a named public source.
-  Directly addresses the brief's "ideally validated with real industrial
-  document samples" note.
-- ✅ UI: header shows `search: hybrid+rerank` / `keyword` and `cloud narrative
-  on` / `local mode` instead of a binary "brain online/offline" (positive,
-  accurate framing); each answer shows a mode badge (⚡ local mode / ✨
-  cloud-polished) and a retrieval-method badge; "How it works" tab gained a
-  10-row capability table (7 "no API needed" rows, 3 "optional, Ollama-swappable"
-  rows).
-- ✅ Tests: `tests/test_offline.py` (13 tests — RRF fusion, hybrid/dense/keyword
-  method selection, reranker + broken-reranker fallback, extractive-answer
-  fallback on `llm=None` and on a raising LLM, faithfulness scorer) all using
-  lightweight stubs (`StubEmbedder`/`StubReranker`), matching the existing
-  LLM-stub convention — **no real model downloads in the regression suite**.
-  `tests/test_embed_cache.py` (2 tests) pins the re-ingest bug fix. Full suite:
-  **69 tests, ~35s** (one API test deliberately exercises the real embedder to
-  validate `/scorecard` end-to-end; everything else stays on Level 0 deps).
-- 📝 **Decision**: did not change the default `LLM_PROVIDER` (stays `gemini` to
-  not silently break the user's already-configured working key) — instead
-  made every code path that matters (retrieval, agents, confidence, even the
-  answer itself) not require it, and documented Ollama as the recommended
-  swap-in for a fully air-gapped deployment (already wired, unverified against
-  a live Ollama server in this sandboxed environment — no daemon/model-pull
-  access here).
+Given no measured quality gain, and given the real cost (~4 GB of downloaded
+models, 20-30s startup delay, a caching subsystem that introduced its own bug
+requiring its own fix, general code complexity out of proportion to a
+hackathon judging window), **the whole stack was removed in a follow-up
+session** and retrieval was reverted to plain keyword search. See CLAUDE.md's
+"Why keyword search, not embeddings?" for the full reasoning, kept as a
+standing decision record so nobody re-adds this complexity without first
+re-running the benchmark.
+
+**What was removed:**
+- `src/brain/providers/embeddings.py` (LocalEmbedder/LocalReranker) — deleted.
+- `src/brain/copilot/faithfulness.py` + `eval/faithfulness_eval.py` — deleted.
+- `scripts/embed.py` + the `_carry_forward_embeddings()` cache-preservation
+  logic in `ingest/pipeline.py` — deleted (the bug it fixed only existed
+  because the cache it was protecting existed).
+- `tests/test_embed_cache.py` — deleted (tested the now-gone cache).
+- `tests/test_offline.py` — trimmed from 13 tests down to 3: kept the
+  extractive-answer-fallback tests (that feature stays — it's pure code, no
+  model, no dependency), removed the RRF-fusion/reranker/faithfulness tests.
+- `sentence-transformers` + `transformers` packages uninstalled;
+  `BAAI/bge-base-en-v1.5` + `BAAI/bge-reranker-base` model downloads deleted
+  from the HuggingFace cache (~3.15 GB reclaimed). **`torch` was deliberately
+  left installed** — it's required by other, unrelated software already on
+  this machine (`ultralytics`, `stable_baselines3`, `torchvision`); removing
+  it would have broken those, which was not this project's call to make.
+- `EMBED_MODEL`/`RERANKER_MODEL` settings, `--embeddings` CLI flags, `make
+  embed` target, and all UI copy referencing "hybrid search"/"reranker" —
+  removed or corrected to describe plain keyword search accurately.
+- `Answer.mode` (`"extractive"`/`"generative"`) **stays** — it's the one piece
+  of that session's work that's pure code with zero dependency cost and
+  genuinely useful (the copilot still answers, cited and confident, with no
+  LLM configured or reachable).
+
+**Result**: full test suite back to fast (~25-35s, no model loading), demo
+behaviour and every scorecard number unchanged, `python run.py` launches in
+~6s instead of ~25s+.
 
 ## Remaining / optional polish
-- ⚠️ Presentation deck + demo video (deliverables) — outlines/notes in [DEMO.md](DEMO.md); not code (explicitly out of scope this session per direction).
+- ⚠️ Presentation deck + demo video (deliverables) — outlines/notes in [DEMO.md](DEMO.md); not code.
 - ⚠️ Neo4j-backed retrieval path (copilot currently uses the in-memory graph — sufficient for the demo; a Neo4jKnowledgeBase can implement the same surface for scale).
 - ⚠️ Docling per-page citation precision.
 - ⚠️ Reg→RegRequirement→Asset write-back so some regulations aren't graph orphans (compliance report already stands alone; not a correctness issue).
@@ -198,11 +170,10 @@ python run.py                                 # one command: setup + launch (see
 # — or, layer by layer —
 make up && make init && make synth            # infra + schema + synthetic corpus + readings
 make ingest        (or make ingest-structured on L0 deps)
-make embed                                    # cache embeddings once (local, no API)
 make build-graph                              # merge into the graph (+ Neo4j if up)
 make api                                       # then open http://localhost:8000/ui
 make scorecard                                 # every judged metric, live, 0 API calls
-make test                                      # 69 tests, ~35s, Level 0 deps only
+make test                                      # 57 tests, ~25-35s, Level 0 deps only, no ML models
 ```
 
 ---
@@ -213,11 +184,11 @@ make test                                      # 69 tests, ~35s, Level 0 deps on
 - Equipment-tag regex rejects hyphen-embedded refs and non-asset prefixes (WO/NCR/INC/SOP/…) to avoid bogus assets.
 - Committed benchmark fixtures in `eval/fixtures` (stable, always runnable) — independent of the gitignored corpus.
 - Real git commits per level (repo convention `feat(lN): …`) so sessions resume cleanly.
-- **Local models first, cloud LLM last** (this session) — retrieval, agent verdicts, and confidence never require an API call; the LLM only polishes the narrative. See CLAUDE.md's "Offline-first architecture" section for the full rationale and the exact modules involved.
-- Local proxy metrics are scoped honestly in their own docstrings (e.g. faithfulness = topical grounding, not fine-grained fact-checking) rather than oversold — a metric a judge can poke a hole in is worse than one that states its own limits upfront.
+- **Plain code first, cloud LLM last** — retrieval (graph traversal + keyword search), agent verdicts, and confidence never require an API call; the LLM only polishes the narrative. See CLAUDE.md's "Why keyword search, not embeddings?" section for the full rationale, including the benchmark that led to removing a heavier retrieval stack.
+- **Measure before keeping complexity.** A hybrid embeddings+reranker retrieval stack was built, benchmarked against the simpler alternative, found to make no difference, and removed. Any future "this would make it smarter" addition to retrieval should be justified the same way — a before/after run of `eval/copilot_bench.py`, not just a plausible-sounding argument.
 
 ## ⚠️ Known limitations
 - Docling page-level char mapping not wired → PDF citations resolve to document, not page.
-- AI + vision paths verified via stubs (unit tests) and, for the text LLM, live Gemini calls in this session; vision (P&ID) and Ollama specifically are not yet exercised against real inputs in this environment.
-- Embedding ~6k passages on CPU takes ~2–3 minutes the *first* time (`make embed`) — one-time and fully local, not a per-request cost; startup caps auto-embedding at 500 missing chunks to keep launches fast.
-- The local faithfulness metric is a topical-grounding proxy (see `copilot/faithfulness.py` docstring) — it will not catch a right-topic answer with one wrong number; that class of error is caught by the deterministic agents (compliance, RCA) instead.
+- AI + vision paths verified via stubs (unit tests) and, for the text LLM, live Gemini calls; vision (P&ID) and Ollama specifically are not yet exercised against real inputs in this environment.
+- Benchmark scores in `eval/` are self-authored (same person wrote the system and the test questions) — "1.0" means "behaves as designed," not independent proof of generalization.
+- Torch remains installed on this machine because other, unrelated software depends on it — it is **not** a dependency of this project anymore; nothing in `src/brain` imports it.

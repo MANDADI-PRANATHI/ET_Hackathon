@@ -11,7 +11,7 @@ for the engineering guide.
 ```
                          ┌──────────────────────────────────────────────┐
    Heterogeneous docs    │              INGESTION  (Level 1)              │
-   PDFs · P&IDs · CSVs   │  router → readers → extraction → chunk/embed   │
+   PDFs · P&IDs · CSVs   │  router → readers → extraction → chunk         │
    emails · scans ──────▶│  structured(no AI) · regex · AI prose · vision │
                          │  every fact: source + confidence + extractor   │
                          └───────────────────────┬──────────────────────┘
@@ -24,17 +24,16 @@ for the engineering guide.
                          │  ASSET is the hub · metrics · viz export       │
                          │        in-memory GraphModel  ──►  Neo4j        │
                          └───────────────────────┬──────────────────────┘
-                                                 │  GraphModel + Chunk vectors
+                                                 │  GraphModel + Chunk passages
                  ┌───────────────────────────────┼───────────────────────────────┐
                  ▼                               ▼                                 ▼
      ┌───────────────────────┐   ┌──────────────────────────┐   ┌──────────────────────────┐
      │  COPILOT (Level 3)    │   │   AGENTS (Level 4)        │   │  SCORECARD (Level 5)      │
      │  GraphRAG retrieval   │   │  4a compliance (hybrid)   │   │  every judged metric,     │
      │  = graph neighbourhood│   │  4b RCA + readings adapter│   │  computed live, 0 API     │
-     │  + LOCAL hybrid search │   │  4c lessons + warnings    │   │  calls                    │
-     │  (BM25+dense+rerank)  │   │  code decides; LLM writes │   │  ontology-swap demo       │
-     │  cited · confidence   │   │  the narrative (optional) │   │                           │
-     │  role-aware · PII gate │   │                            │   │                           │
+     │  + keyword search     │   │  4c lessons + warnings    │   │  calls                    │
+     │  cited · confidence   │   │  code decides; LLM writes │   │  ontology-swap demo       │
+     │  role-aware · PII gate │   │  the narrative (optional) │   │                           │
      └───────────┬───────────┘   └────────────┬─────────────┘   └────────────┬─────────────┘
                  └───────────────────┬─────────┴───────────────────┬─────────┘
                                      ▼                             ▼
@@ -46,7 +45,7 @@ for the engineering guide.
 
 | Layer | Modules | Responsibility |
 |---|---|---|
-| **L0 Foundation** | `config`, `ontology`, `providers/*`, `stores/neo4j_init` | Settings, swappable ontology, LLM/embedding providers, DB schema |
+| **L0 Foundation** | `config`, `ontology`, `providers/llm`, `stores/neo4j_init` | Settings, swappable ontology, LLM provider, DB schema |
 | **L1 Ingestion** | `ingest/{router,readers,patterns,extract,chunk,confidence,pipeline}` | Docs → source-stamped, confidence-scored facts (`StagedDoc`) |
 | **L2 Graph** | `graph/{model,resolve,metrics,export}`, `stores/graph_writer` | Merge facts into the asset-centric graph; resolution; metrics; Neo4j |
 | **L3 Copilot** | `retrieval/knowledge`, `copilot/{answer,roles}`, `api` | GraphRAG answers: cited, confidence-scored, role-aware |
@@ -76,42 +75,48 @@ what makes the system auditable end-to-end.
    swap without touching call sites.
 6. **Degrade gracefully** — no API key, no Neo4j, no optional dep must break a
    path that doesn't need it. The whole product runs offline from `data/staging`.
-7. **Local models first, cloud last** — retrieval (BM25 + local embeddings +
-   local reranker), every agent verdict, and confidence scoring run with zero
-   API calls. The cloud/local LLM only adds narrative polish; the copilot
-   composes a genuinely readable answer from the same cited evidence when none
-   is configured. This is a deliberate architecture choice, not a fallback
-   bolted on afterwards — see CLAUDE.md's "Offline-first architecture" section.
+7. **Plain code first, cloud last** — retrieval (graph traversal + keyword
+   search), every agent verdict, and confidence scoring run with zero API
+   calls or ML models. The cloud/local LLM only adds narrative polish; the
+   copilot composes a genuinely readable answer from the same cited evidence
+   when none is configured. A hybrid embeddings+reranker retrieval stack was
+   built and benchmarked, found to make no measurable difference over plain
+   keyword search on this system's own eval, and removed — see CLAUDE.md's
+   "Why keyword search, not embeddings?" section for the full reasoning.
 
 ## 5. Storage
 
-- **Neo4j** — the connections store (asset-centric graph) + a vector index on
-  `Chunk.embedding` for meaning search. For the demo the merged graph also lives
-  in an in-memory `GraphModel`, so the copilot and agents run without a database.
+- **Neo4j** — the connections store (asset-centric graph). A vector-index
+  schema stub exists for a future semantic-search path but is unused by the
+  current retrieval, which runs entirely in-memory. For the demo the merged
+  graph lives in an in-memory `GraphModel`, so the copilot and agents run
+  without a database.
 - **Postgres** — app state + the time-series readings table (via the readings
   adapter).
 - **MinIO** — raw document storage (S3-compatible).
 
-## 6. Retrieval — local hybrid search + GraphRAG
+## 6. Retrieval — keyword search + GraphRAG
 
 ```
 question ─▶ spot asset(s)  ─▶ graph neighbourhood (work orders, inspections,     ┐
               (tag/name/       incidents, procedures, regulations)              │
-               class)                                                          │
-                                                                                ├─▶ combine ─▶ LLM (optional) ─▶ cited,
-          ─▶ LOCAL HYBRID SEARCH — all three stages on-device, zero API calls: │      or local extractive       confidence-scored
-              ① BM25 keyword  +  ② dense embedding cosine                       │      template over the         role-aware answer
-              ③ Reciprocal Rank Fusion of ① and ②                               │      same evidence
-              ④ local cross-encoder reranks the fused pool ──────────────────── ┘
+               class)                                                          ├─▶ combine ─▶ LLM (optional) ─▶ cited,
+                                                                                │      or local extractive       confidence-scored
+          ─▶ keyword search (BM25) over document passages ────────────────────  ┘      template over the         role-aware answer
+                                                                                        same evidence
 ```
 
-Graph + hybrid search together are what let a maintenance question be answered
-by a safety document — measured as the **cross-functional discovery rate**. The
-LLM box is optional by construction: with none configured (or a failed call),
-step 5 falls back to a deterministic, role-framed answer built from the exact
-same cited evidence (`Answer.mode == "extractive"`) instead of degrading to an
-error. Retrieval quality, evidence selection, and confidence are therefore
-never a function of API availability.
+Graph + keyword search together are what let a maintenance question be
+answered by a safety document — measured as the **cross-functional discovery
+rate**. Most of an answer's correctness comes from the graph step (an exact
+lookup of everything connected to the named asset); passage search is a
+secondary layer, and plain keyword matching was measured to be sufficient for
+it (see CLAUDE.md). The LLM box is optional by construction: with none
+configured (or a failed call), the answer falls back to a deterministic,
+role-framed composition built from the exact same cited evidence
+(`Answer.mode == "extractive"`) instead of degrading to an error. Retrieval
+quality, evidence selection, and confidence are therefore never a function of
+API availability.
 
 ## 7. Evaluation mapping (the scorecard)
 
@@ -119,17 +124,18 @@ never a function of API availability.
 |---|---|---|---|
 | Entity extraction accuracy | `eval/extraction_eval` | F1 1.0 | No |
 | Query answer quality | `eval/copilot_bench` (groundedness) | 1.0 | No |
-| Answer faithfulness (embedding-grounded) | `eval/faithfulness_eval` | discrimination 1.0 | No — local embedder only |
 | Knowledge-graph linkage completeness | `graph/metrics` | 1.0 (at 408-asset scale) | No |
-| Time-to-answer vs traditional search | `copilot_bench` (GraphRAG vs BM25) | measured | No |
+| Time-to-answer vs traditional search | `copilot_bench` (GraphRAG vs raw keyword) | measured | No |
 | Compliance-gap detection accuracy | `eval/compliance_eval` | F1 1.0 | No |
 | RCA / lessons-learned quality | `eval/rca_eval`, `eval/lessons_eval` | 1.0 / 1.0 | No |
 | Cross-functional knowledge discovery | `eval/copilot_bench` | 1.0 | No |
 
 \*On the demo corpus (408 assets, 6,257 passages incl. real CSB/OSHA
-references); `make scorecard` recomputes every row live. Every metric above is
-reproducible with **zero network calls** — the scorecard itself doesn't depend
-on the same cloud API the product is designed not to depend on.
+references); `make scorecard` recomputes every row live, with zero network
+calls. **Caveat worth stating plainly**: these benchmark questions were
+authored by the same person who built the system, so a "1.0" score means the
+pipeline behaves as designed — it is not independent evidence of
+generalization to questions nobody anticipated.
 
 ## 8. Generic engine, swappable industry
 

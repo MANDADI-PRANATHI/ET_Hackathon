@@ -108,7 +108,6 @@ def ingest_file(
     onto: Dict[str, Any],
     px: Optional[PatternExtractor] = None,
     llm=None,
-    embedder=None,
     vision_fn=None,
     enable_vision: bool = True,
 ) -> Optional[StagedDoc]:
@@ -172,35 +171,8 @@ def ingest_file(
                                      confidence=1.0, extractor=STRUCTURED))
 
     staged.nodes = _dedupe_nodes(staged.nodes)
-
-    if embedder is not None and staged.chunks:
-        vectors = embedder.embed([c.text for c in staged.chunks])
-        for ch, vec in zip(staged.chunks, vectors):
-            ch.embedding = vec
-
     return staged
 
-
-def _carry_forward_embeddings(staged: StagedDoc, staging_dir: Path) -> None:
-    """Re-ingesting a document (e.g. after dropping in new files elsewhere)
-    would otherwise silently discard any embeddings already cached for its
-    unchanged passages, forcing a full, slow re-embed for no reason. Carry
-    them forward by (chunk id, exact text) match, so `make embed` only ever
-    pays for passages that are genuinely new or actually changed."""
-    existing_path = Path(staging_dir) / f"{staged.document.id}.json"
-    if not existing_path.exists():
-        return
-    try:
-        prior = StagedDoc.read(existing_path)
-    except Exception:  # noqa: BLE001 - a corrupt cache file just means no reuse
-        return
-    prior_by_id = {c.id: c for c in prior.chunks}
-    for ch in staged.chunks:
-        if ch.embedding is not None:
-            continue
-        old = prior_by_id.get(ch.id)
-        if old is not None and old.embedding is not None and old.text == ch.text:
-            ch.embedding = old.embedding
 
 
 def _iter_files(corpus_root: Path) -> List[Path]:
@@ -214,7 +186,6 @@ def ingest_corpus(
     staging_dir: Path,
     onto: Dict[str, Any],
     use_ai: bool = False,
-    use_embeddings: bool = False,
 ) -> Dict[str, int]:
     """Walk the corpus, stage every readable file, return summary counts."""
     corpus_root, staging_dir = Path(corpus_root), Path(staging_dir)
@@ -225,18 +196,13 @@ def ingest_corpus(
         from brain.providers.llm import get_llm
         llm = get_llm()
 
-    embedder = None
-    if use_embeddings:
-        from brain.providers.embeddings import LocalEmbedder
-        embedder = LocalEmbedder()
-
     counts = {"documents": 0, "skipped": 0, "failed": 0,
               "nodes": 0, "edges": 0, "chunks": 0}
     failures = []
     for path in _iter_files(corpus_root):
         try:
             staged = ingest_file(path, corpus_root, onto, px=px, llm=llm,
-                                 embedder=embedder, enable_vision=use_ai)
+                                 enable_vision=use_ai)
         except Exception as e:  # noqa: BLE001 - one bad file must not stop the batch
             counts["failed"] += 1
             failures.append((str(path), f"{type(e).__name__}: {e}"))
@@ -244,7 +210,6 @@ def ingest_corpus(
         if staged is None:
             counts["skipped"] += 1
             continue
-        _carry_forward_embeddings(staged, staging_dir)
         staged.write(staging_dir)
         counts["documents"] += 1
         counts["nodes"] += len(staged.nodes)

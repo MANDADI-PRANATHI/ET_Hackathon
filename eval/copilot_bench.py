@@ -2,9 +2,8 @@
 
 Without a live LLM we still measure the things that actually decide answer
 quality: does retrieval surface the right evidence (groundedness), does it reach
-across departments (cross-functional discovery), and does it beat keyword search
-at *locating the answer*? Answer-text faithfulness (RAGAS-style) plugs in on top
-when an LLM key is available.
+across departments (cross-functional discovery), and does it beat a raw
+keyword-only baseline at *locating the answer*?
 
   python eval/copilot_bench.py            # report
   python eval/copilot_bench.py --json     # for the scorecard

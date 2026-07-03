@@ -20,10 +20,10 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen2.5:7b"
     ollama_vision_model: str = "qwen2.5vl:7b"
 
-    # --- local embeddings + reranker (used from Level 1; free, on-device) ---
-    embed_model: str = "BAAI/bge-base-en-v1.5"
+    # --- vector index dimension (schema-only stub for a future Neo4j-backed
+    # semantic search path; the current retrieval path is plain keyword search
+    # and does not require this or any local ML model) ---
     embed_dim: int = 768
-    reranker_model: str = "BAAI/bge-reranker-base"
 
     # --- Neo4j (connections store: graph + vector index) ---
     neo4j_uri: str = "bolt://localhost:7687"
