@@ -29,11 +29,15 @@ Submission target: **22 July 2026**.
 ## Architecture (data flow)
 ```
 corpus files ──▶ ingest (Level 1) ──▶ data/staging/*.json ──▶ build-graph (Level 2) ──▶ Neo4j
-                    router                StagedDoc                merge + resolve         graph + vector index
-                    readers               (nodes/edges/chunks)                                    │
+                    router                StagedDoc              GraphModel (merge+resolve)  graph + vector index
+                    readers               (nodes/edges/chunks)   metrics + viz export (JSON)       │
                     patterns (regex)                                                              ▼
                     extract (AI)                                            copilot (Level 3) · agents (Level 4)
                     chunk / embed                                           scorecard (Level 5)
+
+Level 2 note: the merge/resolution logic lives in a storage-free `GraphModel`
+(pure, testable); the Neo4j writer just persists it. `build_graph.py` always
+produces the model, metrics, and viz export, and writes to Neo4j when reachable.
 ```
 
 ### The staging contract (`brain/schema.py`) — the spine of the system
@@ -63,6 +67,11 @@ across documents by `(label, value)`; it never needs to know how a fact was foun
 | `ingest/extract.py` | AI prose extraction — schema-fenced, evidence-quoted, confidence-capped, LLM injected. |
 | `ingest/pipeline.py` | Orchestrates route→read→extract→chunk→embed→stage. |
 | `search/keyword.py` | BM25 baseline ("traditional search") for the time-to-answer metric. |
+| `graph/model.py` | In-memory merged graph: MERGE by (label, canonical value), property precedence by extractor tier, confidence via agreement, provenance. Storage-free & testable. |
+| `graph/resolve.py` | Entity resolution: canonicalisation, `same_asset`, `base_tag`, `propose_merges` (no over-merge of A/B backups). |
+| `graph/metrics.py` | Linkage completeness (asset coverage), orphans, needs-review counts. |
+| `graph/export.py` | Clean asset-centric JSON for the demo graph visualisation. |
+| `stores/graph_writer.py` | Persist the merged graph into Neo4j (lazy, provenance onto elements). |
 
 ## Conventions
 - Every module starts with a plain-English docstring explaining *why*.

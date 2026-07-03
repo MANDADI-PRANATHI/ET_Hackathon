@@ -97,6 +97,29 @@ python eval/extraction_eval.py     # entity-extraction accuracy (precision/recal
 python -m pytest tests/ -q         # regression tests (Level 0 deps only)
 ```
 
+## Level 2 — build the asset-centric knowledge graph
+Merges the staged facts into one node per real thing and one edge per real
+relationship, with the **asset as the hub**.
+
+```bash
+make build-graph          # merge + metrics + viz export, and load into Neo4j
+```
+
+- **Cross-document merge**: an asset named in ten documents becomes one node,
+  its properties filled from the most trustworthy source (a table beats a guess).
+- **Entity resolution done carefully**: variant surface forms collapse
+  (`p-101a` → `P-101A`), but backup units stay separate — `P-101A` and `P-101B`
+  are *not* merged. Unclear cases are *proposed* for review, never auto-merged.
+- **Confidence builds up**: a fact confirmed by several documents scores higher.
+- **Linkage completeness** (a judged metric) is reported per run, plus orphans
+  and needs-review counts. A clean asset-centric graph is exported to
+  `data/graph/graph_export.json` for the demo visualisation.
+
+Re-running `make build-graph` is the **update path** — MERGE is idempotent, so
+dropping in a new document, re-ingesting, and rebuilding folds it in without
+duplication. (Runs fully without Neo4j: model, metrics, and export are always
+produced; the database load is attempted when reachable.)
+
 ## Project layout
 ```
 config/ontology/oil_and_gas.yaml   the asset-centric vocabulary (swap to change industry)
@@ -108,12 +131,15 @@ src/brain/stores/neo4j_init.py     creates the graph schema
 src/brain/schema.py                the staging data model (facts + chunks)
 src/brain/ingest/                  Level 1: readers, patterns, extraction, pipeline
 src/brain/search/keyword.py        BM25 baseline ("traditional search")
+src/brain/graph/                   Level 2: merge model, resolution, metrics, export
+src/brain/stores/graph_writer.py   persist the merged graph into Neo4j
 scripts/verify_setup.py            health-check
 scripts/generate_synthetic.py      synthetic plant records + narrative docs
 scripts/ingest.py                  Level 1 ingestion CLI
+scripts/build_graph.py             Level 2 graph build CLI
 eval/                              extraction benchmark (fixtures + labels + scorer)
 tests/                             regression tests (Level 0 deps only)
 data/corpus/                       the document corpus (by type)
 ```
 
-Next: **Level 2 — build the asset-centric knowledge graph.**
+Next: **Level 3 — the GraphRAG copilot.**

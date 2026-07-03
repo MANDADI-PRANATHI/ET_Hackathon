@@ -8,6 +8,9 @@ venv/
 # generated extraction output (large, machine-made)
 data/staging/
 
+# generated graph artefacts (merged export for the viz)
+data/graph/
+
 # generated evaluation / scorecard output
 eval/results/
 

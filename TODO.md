@@ -10,8 +10,8 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 ## Level status
 - ✅ **Level 0 — Foundation** (infra, ontology, provider switch, schema, synth data, health-check)
 - ✅ **Level 1 — Read & extract** (router, readers, deterministic + AI extraction, chunking, embeddings hook, benchmark, keyword baseline)
-- 🔄 **Level 2 — Knowledge graph build** (merge staged facts into Neo4j, entity resolution, live re-ingest)
-- ⏳ **Level 3 — GraphRAG copilot** (retrieval, confidence, citations, role-aware, API + mobile UI + voice)
+- ✅ **Level 2 — Knowledge graph build** (in-memory merge model, entity resolution, Neo4j writer, metrics, viz export, idempotent re-ingest)
+- 🔄 **Level 3 — GraphRAG copilot** (retrieval, confidence, citations, role-aware, API + mobile UI + voice)
 - ⏳ **Level 4a — Compliance & QMS agent** (rule engine, evidence packages, CAPA)
 - ⏳ **Level 4b — Maintenance & RCA agent** (readings adapter, time-series, predictive)
 - ⏳ **Level 4c — Lessons-learned & proactive warnings**
@@ -34,14 +34,25 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ Tests `tests/test_level1.py` — 15 passing on L0 deps.
 - ✅ `requirements-l1.txt`.
 
-## 🔄 Level 2 — NEXT (immediate actions)
-1. `brain/stores/graph_writer.py` — load `data/staging/*.json` into Neo4j: MERGE nodes by (label, key→value), merge properties (non-null wins), create edges; carry source/confidence/extractor onto elements.
-2. Entity resolution `brain/graph/resolve.py` — normalise tags, alias lists, similarity for unclear cases, **do not over-merge** P-101A vs P-101B; multi-source confidence via `agreement_boost`.
-3. `scripts/build_graph.py` (Makefile `build-graph` already points here).
-4. Live re-ingest: extract→compare→merge→update→refresh embeddings→invalidate cache; demo by dropping a new file.
-5. Linkage-completeness + merge-accuracy metrics → `eval/`.
-6. Graph visualisation export (for the demo) — e.g. a Cypher/JSON dump the UI can render.
-7. Tests: resolution logic on L0 deps (pure functions); graph writer behind a driver stub or sk-if-no-neo4j.
+## Level 2 — DONE (detail)
+- ✅ In-memory merge model `graph/model.py` — MERGE by (label, canonical value), property precedence by extractor tier (structured > regex/vision/ai), confidence via `agreement_boost`, provenance aggregation. Storage-free & fully testable.
+- ✅ Entity resolution `graph/resolve.py` — canonicalisation (tags/regs/names), `same_asset`, `base_tag`, `propose_merges` (skips A/B backups → no over-merge), similarity.
+- ✅ Neo4j writer `stores/graph_writer.py` — MERGE nodes/edges, provenance onto elements, lazy import, `--wipe`.
+- ✅ Metrics `graph/metrics.py` — linkage completeness (asset coverage: documented/maintained/inspected), orphans, needs-review counts. Verified: score 0.958 on synthetic corpus.
+- ✅ Viz export `graph/export.py` — clean asset-centric JSON (chunks hidden), hub flag.
+- ✅ `scripts/build_graph.py` — merge + metrics + export always; Neo4j write degrades gracefully if unavailable. Idempotent re-run = the update path.
+- ✅ Tests `tests/test_level2.py` — 10 passing (25 total).
+
+## 🔄 Level 3 — NEXT (immediate actions)
+1. `brain/retrieval/` — GraphRAG: entity-spot in question → graph hub + neighbours (Neo4j or in-memory model) + meaning-search over chunks (vector index; fall back to keyword when embeddings absent) → combine.
+2. `brain/copilot/` — answer synthesis with citations (SourceRef → clickable), computed confidence (`answer_confidence` blend), role-aware framing, PII gating for Person.
+3. Vector retrieval: Neo4j vector index query; graceful fallback to `search/keyword.py` + local embeddings cosine when Neo4j/embeddings unavailable.
+4. `scripts/copilot.py` (CLI ask) + Makefile `copilot` target; FastAPI `api/` for the UI.
+5. Expert-question benchmark `eval/` (answer quality + time-to-answer vs keyword baseline + cross-functional discovery rate).
+6. Mobile-first Next.js chat + voice input (separate UI task).
+7. Tests: retrieval assembly + confidence + role/PII gating on L0 deps (stub LLM, in-memory graph).
+
+📝 Level 3 note: build retrieval on the in-memory `GraphModel` first (works with no DB, testable), then add the Neo4j-backed path behind the same interface.
 
 ---
 
