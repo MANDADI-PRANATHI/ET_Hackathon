@@ -24,7 +24,7 @@ def graph_json(g: GraphModel, include_chunks: bool = False) -> Dict[str, Any]:
             "id": f"{label}:{value}",
             "label": label,
             "value": value,
-            "display": n.properties.get("name") or value,
+            "display": n.properties.get("name") or n.properties.get("title") or value,
             "confidence": n.confidence,
             "needs_review": n.needs_review,
             "hub": label == "Asset",

@@ -178,12 +178,13 @@ td.detail{color:hsl(var(--muted-foreground));font-size:13px}
 /* graph */
 svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   border:1px solid hsl(var(--border))}
-.g-line{stroke:hsl(var(--border))}
-.g-node{fill:hsl(var(--muted-foreground))}
 .g-hub{fill:hsl(var(--primary))}
-.g-lbl{fill:hsl(var(--foreground));font-family:var(--font-mono);font-size:9px}
-.g-rel{fill:hsl(var(--muted-foreground));font-family:var(--font-mono);font-size:8px}
-.g-hublbl{fill:#fff;font-family:var(--font-display);font-weight:700;font-size:10px}
+.g-lbl{fill:hsl(var(--foreground));font-family:var(--font-mono);font-size:10px}
+.g-hublbl{fill:#fff;font-family:var(--font-display);font-weight:700;font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin-bottom:12px}
+.leg{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;
+  font-family:var(--font-mono);color:hsl(var(--muted-foreground))}
+.leg i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
 
 /* ask bar */
 .askbar{position:fixed;bottom:0;left:0;right:0;z-index:20;
@@ -365,26 +366,41 @@ async function loadGraph(){
   }
   if($("#assetSel").value) drawGraph($("#assetSel").value);
 }
+const REL_COLORS=["#4f46e5","#0d9488","#c2410c","#9333ea","#0369a1","#b45309","#be123c","#4d7c0f","#0891b2"];
 function drawGraph(asset){
   const id="Asset:"+asset;
   const edges=GRAPH.edges.filter(e=>e.source===id||e.target===id);
-  const nbrs=[...new Set(edges.map(e=>e.source===id?e.target:e.source))];
-  const W=680,H=Math.max(320,150+nbrs.length*9),cx=W/2,cy=H/2,R=Math.min(cx,cy)-64;
+  const seen=new Set(), items=[];
+  edges.forEach(e=>{const nid=e.source===id?e.target:e.source;
+    if(!seen.has(nid)){ seen.add(nid); items.push({nid,type:e.type}); }});
   const byId=Object.fromEntries(GRAPH.nodes.map(n=>[n.id,n]));
-  let s=`<svg viewBox="0 0 ${W} ${H}">`;
-  nbrs.forEach((nid,i)=>{
-    const ang=2*Math.PI*i/nbrs.length,x=cx+R*Math.cos(ang),y=cy+R*Math.sin(ang);
-    const et=edges.find(e=>e.source===nid||e.target===nid);
-    s+=`<line class="g-line" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`;
-    s+=`<circle class="g-node" cx="${x}" cy="${y}" r="5.5"/>`;
-    const n=byId[nid]||{},lab=(n.label||"")+": "+((n.display||n.value||"").slice(0,14));
-    s+=`<text class="g-lbl" x="${x}" y="${y-9}" text-anchor="middle">${esc(lab)}</text>`;
-    if(et) s+=`<text class="g-rel" x="${(cx+x)/2}" y="${(cy+y)/2-2}" text-anchor="middle">${esc(et.type)}</text>`;
+  const relTypes=[...new Set(items.map(it=>it.type))];
+  const relColor=Object.fromEntries(relTypes.map((t,i)=>[t,REL_COLORS[i%REL_COLORS.length]]));
+
+  const N=items.length, W=780, R=180, cx=W/2;
+  const cy=Math.max(250, 96+N*10), H=cy*2;
+  let s=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">`;
+  items.forEach((it,i)=>{
+    const ang=-Math.PI/2 + 2*Math.PI*i/N;
+    const co=Math.cos(ang), si=Math.sin(ang);
+    const x=cx+R*co, y=cy+R*si, col=relColor[it.type];
+    s+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${col}" stroke-opacity=".35" stroke-width="1.4"/>`;
+    s+=`<circle cx="${x}" cy="${y}" r="6" fill="${col}"/>`;
+    const n=byId[it.nid]||{};
+    const full=(n.label||"")+": "+(n.display||n.value||"")+"  ·  "+it.type;
+    let short=(n.display||n.value||""); if(short.length>16) short=short.slice(0,15)+"…";
+    const off=(i%2===0)?15:33;                    /* stagger to avoid collisions */
+    const lx=cx+(R+off)*co, ly=cy+(R+off)*si+3;
+    const anchor=co>0.25?"start":(co<-0.25?"end":"middle");
+    s+=`<text class="g-lbl" x="${lx}" y="${ly}" text-anchor="${anchor}"><title>${esc(full)}</title>${esc(short)}</text>`;
   });
-  s+=`<circle class="g-hub" cx="${cx}" cy="${cy}" r="19"/>`;
-  s+=`<text class="g-hublbl" x="${cx}" y="${cy+3.5}" text-anchor="middle">${esc(asset)}</text></svg>`;
-  $("#graphBox").innerHTML=`<div style="font-size:12.5px;color:hsl(var(--muted-foreground));margin-bottom:8px">
-    <b class="mono" style="color:hsl(var(--primary))">${nbrs.length}</b> connections — ${esc(asset)} at the hub</div>${s}`;
+  s+=`<circle class="g-hub" cx="${cx}" cy="${cy}" r="30"/>`;
+  s+=`<text class="g-hublbl" x="${cx}" y="${cy+4}" text-anchor="middle">${esc(asset)}</text></svg>`;
+  const legend=relTypes.map(t=>`<span class="leg"><i style="background:${relColor[t]}"></i>${esc(t)}</span>`).join("");
+  $("#graphBox").innerHTML=`<div style="font-size:12.5px;color:hsl(var(--muted-foreground));margin-bottom:10px">
+      <b class="mono" style="color:hsl(var(--primary))">${N}</b> connections — everything linked to
+      <b class="mono" style="color:hsl(var(--foreground))">${esc(asset)}</b></div>
+    <div class="legend">${legend}</div>${s}`;
 }
 
 /* ── compliance ── */
