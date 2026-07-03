@@ -1,0 +1,39 @@
+EXTERNAL INDUSTRY REFERENCE — U.S. CHEMICAL SAFETY BOARD (CSB) INVESTIGATION
+Source: U.S. Chemical Safety and Hazard Investigation Board, csb.gov
+Facility: Honeywell, Geismar, Louisiana, USA
+Incident date: 23 January 2023
+Report status: Final report released 27 May 2025 (covers the January 2023
+event and a related 7 June 2024 hydrofluoric acid release)
+
+SUMMARY
+A heat exchanger ruptured at the Honeywell Geismar facility, releasing
+hydrogen fluoride (HF) gas, chlorine gas, and other process fluids to the
+surrounding area.
+
+INVESTIGATION SCOPE
+The CSB's investigation examined the facility's process safety management
+systems, including management of change, mechanical integrity, quality
+assurance, pre-startup safety reviews, operating procedures, and contractor
+management, as contributing factors.
+
+KEY RECOMMENDATIONS (CSB, public record)
+1. Honeywell should commission a comprehensive third-party audit of the
+   facility's process safety and management systems against applicable
+   federal standards.
+2. Honeywell should require periodic reporting on the closure of audit
+   findings until all are resolved.
+3. Honeywell should perform a Safer Technologies and Alternatives Analysis
+   for the affected production unit.
+4. The U.S. EPA should prioritise hydrogen fluoride for risk evaluation
+   under the Toxic Substances Control Act.
+
+RELEVANCE TO HEAT-EXCHANGER-BEARING ASSETS
+This is external, publicly documented industry experience — not an event at
+this plant — included to demonstrate the kind of cross-industry lessons a
+Lessons-Learned engine should be able to surface for any facility operating
+heat exchangers or handling hazardous process fluids: mechanical integrity
+and management-of-change gaps are recurring themes across the industry, not
+one-off events.
+
+Citation: U.S. Chemical Safety Board, "Honeywell Geismar Chlorine and
+Hydrogen Fluoride Releases," csb.gov (accessed 2026).

@@ -1,0 +1,39 @@
+REGULATION — 29 CFR 1910.119(j) — Mechanical Integrity
+Source: U.S. Occupational Safety and Health Administration (OSHA),
+Process Safety Management of Highly Hazardous Chemicals, osha.gov (public
+domain federal regulation, accessed 2026).
+
+SCOPE (1910.119(j))
+Applies to pressure vessels and storage tanks, piping systems (including
+piping components such as valves), relief and vent systems and devices,
+emergency shutdown systems, controls (including monitoring devices and
+sensors, alarms, and interlocks), and pumps.
+
+INSPECTION AND TESTING (1910.119(j)(4))
+Inspections and tests shall be performed on process equipment. Inspection and
+testing procedures shall follow recognized and generally accepted good
+engineering practices. The frequency of inspections and tests shall be
+consistent with applicable manufacturers' recommendations and good
+engineering practices, and more frequently if determined to be necessary by
+prior operating experience.
+
+DOCUMENTATION (1910.119(j)(4)(iv))
+The employer shall document each inspection and test that has been performed
+on process equipment. The documentation shall identify the date of the
+inspection or test, the name of the person who performed the inspection or
+test, the serial number or other identifier of the equipment on which the
+inspection or test was performed, a description of the inspection or test
+performed, and the results of the inspection or test.
+
+DEFICIENCY CORRECTION (1910.119(j)(5))
+When deficiencies are outside acceptable limits, the employer shall correct
+the deficiency before further use, or in a safe and timely manner when
+necessary means are taken to assure safe operation.
+
+RELEVANCE
+This is the regulatory basis, in the same spirit as OISD-STD-105's six-month
+relief-valve interval used elsewhere in this corpus, for treating an
+inspection record's date and identifier as load-bearing compliance evidence
+— exactly what the compliance agent's plain-code checker verifies against the
+graph (last inspection date vs. required interval), rather than leaving the
+determination to a model's judgement.

@@ -22,8 +22,12 @@ eval/results/
 .ruff_cache/
 *.egg-info/
 
-# keep the corpus folder structure + docs, but not the actual data files
+# keep the corpus folder structure + docs, but not the generated/user-added
+# data files — EXCEPT the real, publicly-cited reference documents, which are
+# curated project content, not machine-generated corpus data.
 data/corpus/**
 !data/corpus/**/
 !data/corpus/SOURCES.md
 !data/corpus/**/.gitkeep
+!data/corpus/incidents/EXTERNAL_*.txt
+!data/corpus/regulations/OSHA_*.txt

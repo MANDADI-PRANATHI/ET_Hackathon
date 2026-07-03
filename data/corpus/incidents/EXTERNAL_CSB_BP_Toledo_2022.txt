@@ -1,0 +1,26 @@
+EXTERNAL INDUSTRY REFERENCE — U.S. CHEMICAL SAFETY BOARD (CSB) INVESTIGATION
+Source: U.S. Chemical Safety and Hazard Investigation Board, csb.gov
+Facility: BP-Husky Toledo Refinery, Oregon, Ohio, USA
+Incident date: 20 September 2022
+
+SUMMARY
+An overflow of the Absorber Stripper Tower released liquid to the fuel gas
+system at the BP Toledo Refinery. The facility's process hazard analyses
+(PHAs) had identified furnace safety instrumented systems (SIS) and
+emergency pressure-relief valves as the safeguards against this overflow
+scenario, but the CSB found that neither safeguard was effective in
+preventing the liquid overflow on the day of the incident.
+
+RELEVANCE — SAFEGUARD VERIFICATION
+This is a documented, public example of a common industrial failure pattern:
+a safeguard (relief valve or safety instrumented system) that is *listed* in
+a process hazard analysis as protecting against a scenario, but whose actual
+functional readiness was not independently verified before it was needed. It
+underscores why a compliance and RCA system should track not just whether a
+protective device exists on paper, but its actual inspection and test history
+against the interval its listed protection assumes — exactly the gap the
+compliance agent's hybrid rule-check (AI parses the requirement, code
+verifies the record) is designed to catch before a real demand occurs.
+
+Citation: U.S. Chemical Safety Board, investigation into the 20 September
+2022 incident at the BP-Husky Toledo Refinery, csb.gov (accessed 2026).

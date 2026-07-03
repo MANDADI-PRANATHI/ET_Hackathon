@@ -7,8 +7,8 @@ the real PDFs for the rest.
 
 | Folder | What goes here | Free public sources |
 |---|---|---|
-| `incidents/` | Incident & investigation reports | **US CSB** investigation reports (csb.gov) — detailed refinery incidents, great for RCA & Lessons-Learned |
-| `regulations/` | Safety & quality regulations | **OISD** standards (oisd.gov.in), **OSHA PSM** 29 CFR 1910.119 (osha.gov), Factory Act / PESO docs |
+| `incidents/` | Incident & investigation reports | **US CSB** investigation reports (csb.gov) — detailed refinery incidents, great for RCA & Lessons-Learned. Two real CSB summaries already ship here (`EXTERNAL_CSB_*.txt`) — see below. |
+| `regulations/` | Safety & quality regulations | **OISD** standards (oisd.gov.in), **OSHA PSM** 29 CFR 1910.119 (osha.gov), Factory Act / PESO docs. The actual OSHA mechanical-integrity text already ships here (`OSHA_29CFR1910119_*.txt`). |
 | `manuals/` | Equipment / OEM manuals | Public pump, compressor, valve manuals (manufacturer sites) |
 | `procedures/` | SOPs / safe-work procedures | Public refinery SOP samples; some regulators publish templates |
 | `operating_instructions/` | Operating instructions | Public operating guides / startup-shutdown procedures |
@@ -27,3 +27,26 @@ hand-made documents you add (they match what `make synth` produces):
 
 > Tip: `PSV-110B` is generated with an **overdue** inspection on purpose — it's
 > the gap the Level 4a compliance checker should catch in the demo.
+
+## Real documents already included
+
+This corpus isn't synthetic-only. Three files trace to real, named public
+sources — directly addressing the brief's "ideally validated with real
+industrial document samples" evaluation note:
+
+- `incidents/EXTERNAL_CSB_Honeywell_Geismar_2023.txt` — U.S. Chemical Safety
+  Board investigation, Honeywell Geismar heat-exchanger rupture (HF/chlorine
+  release), 23 Jan 2023.
+- `incidents/EXTERNAL_CSB_BP_Toledo_2022.txt` — U.S. Chemical Safety Board
+  investigation, BP-Husky Toledo relief-valve/safety-instrumented-system
+  failure, 20 Sep 2022.
+- `regulations/OSHA_29CFR1910119_Mechanical_Integrity.txt` — the actual text of
+  29 CFR 1910.119(j), OSHA's Process Safety Management mechanical-integrity
+  requirements (inspection, documentation, deficiency correction).
+
+These are marked `EXTERNAL_` / titled as real regulation text on purpose: they
+describe real facilities and real federal law, not this synthetic plant, so
+they intentionally stay un-linked to the fictional asset tags above — they
+exist as citable, searchable industry-reference content the copilot and
+lessons-learned agent can draw on, exactly as "external industry databases"
+are described in the brief's Lessons-Learned bullet.
