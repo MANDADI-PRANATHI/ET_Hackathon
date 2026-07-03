@@ -32,6 +32,39 @@ def detect_asset_tags(question: str, session) -> List[str]:
     return found
 
 
+def detect_units(question: str, session) -> List[str]:
+    ql = question.lower()
+    rows = session.run("MATCH (u:Unit) RETURN u.name AS name")
+    return [r["name"] for r in rows if r["name"] and r["name"].lower() in ql]
+
+
+def assets_in_units(session, units: List[str]) -> List[str]:
+    if not units:
+        return []
+    rows = session.run(
+        "MATCH (a:Asset)-[:LOCATED_IN]->(u:Unit) WHERE u.name IN $u RETURN DISTINCT a.tag AS t", u=units)
+    return [r["t"] for r in rows]
+
+
+def detect_classes(question: str, session) -> List[str]:
+    ql = question.lower()
+    rows = session.run("MATCH (a:Asset) WHERE a.asset_class IS NOT NULL "
+                       "RETURN DISTINCT a.asset_class AS c")
+    out = []
+    for r in rows:
+        c = r["c"]
+        if c and (c.lower() in ql or (c.lower() + "s") in ql):  # "valve" / "valves"
+            out.append(c)
+    return out
+
+
+def assets_of_classes(session, classes: List[str]) -> List[str]:
+    if not classes:
+        return []
+    rows = session.run("MATCH (a:Asset) WHERE a.asset_class IN $c RETURN a.tag AS t", c=classes)
+    return [r["t"] for r in rows]
+
+
 def vector_search(session, embedding: List[float], k: int = 6) -> List[Dict[str, Any]]:
     rows = session.run(
         "CALL db.index.vector.queryNodes('chunk_embeddings', $k, $emb) YIELD node, score "
@@ -90,15 +123,30 @@ def graph_context(session, tags: List[str], limit: int = 30) -> List[Dict[str, A
     return facts
 
 
-def retrieve(question: str, k: int = 6) -> Dict[str, Any]:
-    from brain.providers.embeddings import LocalEmbedder
+_EMBEDDER = None
 
-    embedding = LocalEmbedder().embed([question])[0]
+
+def _embed(text: str) -> List[float]:
+    global _EMBEDDER
+    if _EMBEDDER is None:
+        from brain.providers.embeddings import LocalEmbedder
+        _EMBEDDER = LocalEmbedder()  # load the model once, reuse across calls
+    return _EMBEDDER.embed([text])[0]
+
+
+def retrieve(question: str, k: int = 6) -> Dict[str, Any]:
+    embedding = _embed(question)
     driver = _driver()
     with driver.session() as s:
         tags = detect_asset_tags(question, s)
+        units = detect_units(question, s)
+        classes = detect_classes(question, s)
         chunks = vector_search(s, embedding, k)
-        tags = list(dict.fromkeys(tags + assets_in_chunks(s, [c["id"] for c in chunks])))
+        tags = list(dict.fromkeys(
+            tags
+            + assets_in_units(s, units)
+            + assets_of_classes(s, classes)
+            + assets_in_chunks(s, [c["id"] for c in chunks])))
         facts = graph_context(s, tags)
     driver.close()
     return {"question": question, "tags": tags, "chunks": chunks, "facts": facts}

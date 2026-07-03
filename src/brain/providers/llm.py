@@ -29,15 +29,31 @@ class GeminiLLM:
         self._model = settings.gemini_model
 
     def generate(self, prompt: str, system: Optional[str] = None) -> str:
+        import re
+        import time
+
         from google.genai import types
 
         config = (
             types.GenerateContentConfig(system_instruction=system) if system else None
         )
-        resp = self._client.models.generate_content(
-            model=self._model, contents=prompt, config=config
-        )
-        return (resp.text or "").strip()
+        last_error = None
+        for _ in range(6):
+            try:
+                resp = self._client.models.generate_content(
+                    model=self._model, contents=prompt, config=config
+                )
+                return (resp.text or "").strip()
+            except Exception as e:  # noqa: BLE001
+                msg = str(e)
+                # Free-tier rate limit (5 req/min): wait the suggested time and retry.
+                if "RESOURCE_EXHAUSTED" not in msg and "429" not in msg:
+                    raise
+                last_error = e
+                m = re.search(r"retry(?:Delay)?['\":\s]*([0-9]+(?:\.[0-9]+)?)\s*s", msg)
+                delay = (float(m.group(1)) + 2) if m else 30.0
+                time.sleep(min(delay, 70))
+        raise last_error
 
 
 class OllamaLLM:
