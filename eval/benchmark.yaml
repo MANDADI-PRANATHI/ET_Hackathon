@@ -1,0 +1,33 @@
+# Evaluation benchmark — ground truth for the scorecard.
+
+# Every asset we know exists (ground truth for "did we capture the entities").
+known_assets: [P-101A, P-101B, V-204, E-301, C-102, PSV-110A, PSV-110B, FT-150]
+
+# Which assets are genuine compliance gaps under the seed rules (ground truth).
+# Only PSV-110B is overdue for its 6-month statutory valve inspection.
+compliance_gaps: [PSV-110B]
+
+# Domain-expert questions. For each:
+#   must_include      -> ALL of these strings should appear in the answer
+#   must_include_any  -> AT LEAST ONE of these should appear
+qa:
+  - question: "Is pump P-101B overdue for inspection and what is its maintenance history?"
+    must_include: ["P-101B"]
+    must_include_any: ["WO-4407", "WO-44", "overdue", "seal", "alignment"]
+
+  - question: "Who performed work on V-204?"
+    must_include: ["V-204"]
+    must_include_any: ["Sharma", "Kumar", "Patel", "Iyer"]
+
+  - question: "What does OSHA require for process safety information?"
+    must_include_any: ["hazard", "chemical", "equipment", "technology"]
+
+  - question: "What equipment is located in unit CDU-1?"
+    must_include_any: ["P-101", "V-204", "PSV", "E-301", "C-102"]
+
+  - question: "Which valve is overdue for inspection?"
+    must_include_any: ["PSV-110B", "PSV-110", "overdue"]
+
+  - question: "What maintenance has been done on the reflux drum V-204?"
+    must_include: ["V-204"]
+    must_include_any: ["WO-44", "gasket", "seal", "bearing", "inspection"]

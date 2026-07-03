@@ -56,4 +56,7 @@ readings:  ## Level 4b: generate the synthetic sensor-readings feed (with a plan
 rca:       ## Level 4b: root-cause analysis for an asset — make rca ASSET=P-101B
 	python scripts/rca.py "$(ASSET)"
 
-.PHONY: up down logs install install-l1 install-l3 init verify synth ingest ingest-structured build-graph ask serve compliance readings rca
+eval:      ## Level 5: run the evaluation harness -> reports/scorecard.md (add --no-judge to skip LLM judge)
+	python scripts/evaluate.py
+
+.PHONY: up down logs install install-l1 install-l3 init verify synth ingest ingest-structured build-graph ask serve compliance readings rca eval
