@@ -4,6 +4,9 @@ export PYTHONPATH
 # Container engine: auto-detect docker, else podman. Override: make up COMPOSE="podman compose"
 COMPOSE ?= $(shell command -v docker >/dev/null 2>&1 && echo docker compose || echo podman compose)
 
+demo:      ## ONE COMMAND: set up everything and launch the app + UI
+	python run.py
+
 up:        ## start Neo4j, Postgres, MinIO (docker or podman — same compose file)
 	$(COMPOSE) up -d
 
@@ -66,6 +69,6 @@ eval:      ## run all benchmarks (extraction + copilot + compliance + rca + less
 test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
-.PHONY: up down logs install install-l1 install-l3 init verify synth ingest \
+.PHONY: demo up down logs install install-l1 install-l3 init verify synth ingest \
         ingest-structured build-graph copilot api compliance rca lessons \
         scorecard eval test

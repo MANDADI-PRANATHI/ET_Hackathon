@@ -2,8 +2,27 @@
 ET AI Hackathon 2026 · Problem Statement #8 — Industrial Knowledge Intelligence
 
 See **[PLAN.md](PLAN.md)** for the full plan and **[CLAUDE.md](CLAUDE.md)** for the
-engineering guide. This README covers **Level 0 (foundation)** and **Level 1
-(read & extract)**. Everything runs locally and free.
+engineering guide. Everything runs locally and free.
+
+## ⚡ Quickest start — one command
+No Docker, no API key, no heavy setup needed:
+```bash
+python run.py
+```
+This installs the few packages it needs, generates the sample plant, reads the
+documents, and opens the app at **http://localhost:8000/ui**. That's a complete,
+self-contained working prototype. (Add `--full` for the heavy pipeline: real-PDF
+reading + semantic search.)
+
+Then test it:
+```bash
+make test         # 54 automated tests
+make scorecard    # every judged metric, computed live
+```
+
+---
+
+The sections below explain each layer (Level 0 foundation → Level 5) in detail.
 
 ---
 
