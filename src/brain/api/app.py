@@ -15,6 +15,7 @@ Run:  make api   (uvicorn brain.api.app:app --reload)
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
@@ -58,15 +59,18 @@ def _load() -> None:
     state.copilot = Copilot(state.kb, llm)
 
 
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    _load()
+    yield
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="Sutradhar — Asset & Operations Brain", version="0.3")
+    app = FastAPI(title="Sutradhar — Asset & Operations Brain", version="0.5",
+                  lifespan=_lifespan)
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
     )
-
-    @app.on_event("startup")
-    def _startup() -> None:
-        _load()
 
     @app.get("/health")
     def health() -> dict:

@@ -82,7 +82,9 @@ Legend: ✅ done · 🔄 in progress · ⏳ pending · 📝 decision · ⚠️ l
 - ✅ `web/index.html` — single-file mobile-first UI served by FastAPI at `/ui`: chat with confidence badge + clickable citations + cross-functional flag + role selector, **voice input** (Web Speech API), interactive graph (hub + neighbours), compliance / warnings / scorecard panels.
 - ✅ Ontology-swap: `config/ontology/manufacturing.yaml` (same node/rel types, different vocabulary); `make verify ONTOLOGY_PROFILE=...` proves generality.
 - ✅ `ARCHITECTURE.md` with diagrams (deliverable).
-- ✅ `tests/test_level5.py` — scorecard aggregation + ontology interchangeability (49 tests total).
+- ✅ `tests/test_level5.py` — scorecard aggregation + ontology interchangeability.
+- ✅ `tests/test_api.py` — full HTTP surface smoke test (skips if FastAPI absent). **54 tests total.**
+- ✅ API uses the modern lifespan handler (no deprecation warnings). Verified end-to-end via TestClient: /health, /ask (High 0.976, 17 cites, cross-functional), /compliance (1 GAP), /warnings, /rca, /graph, /scorecard, /ui.
 
 ## Remaining / optional polish
 - ⚠️ Presentation deck + demo video (deliverables) — outlines/notes to draft; not code.
