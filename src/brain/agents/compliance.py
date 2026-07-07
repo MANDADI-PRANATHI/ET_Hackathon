@@ -36,11 +36,12 @@ class RegRequirement:
     code: str                      # e.g. OISD-STD-105
     clause: str                    # human text the rule came from
     applies_to_class: str          # asset class the rule governs, e.g. "Valve"
-    check_type: str                # "interval_days" | "threshold"
+    check_type: str                # "interval_days" | "no_open_nonconformance" | "record_exists" | "threshold"
     interval_days: Optional[int] = None
     parameter: Optional[str] = None
     operator: Optional[str] = None   # for threshold checks (<=, >=, ...)
     threshold: Optional[float] = None
+    requires_label: Optional[str] = None   # for "record_exists" checks
     description: str = ""
 
 
@@ -159,16 +160,15 @@ def _latest_inspection(g: GraphModel, asset_value: str):
     return best_node, best_date
 
 
-def check_requirement(
-    g: GraphModel, req: RegRequirement, today: datetime.date
-) -> List[AssetCompliance]:
-    results: List[AssetCompliance] = []
-    if req.check_type != "interval_days" or not req.interval_days:
-        return results   # threshold checks arrive with Level 4b readings
-
+def _assets_of_class(g: GraphModel, asset_class: str):
     for asset in g.nodes_by_label("Asset"):
-        if (asset.properties.get("asset_class") or "") != req.applies_to_class:
-            continue
+        if (asset.properties.get("asset_class") or "") == asset_class:
+            yield asset
+
+
+def _check_interval_days(g: GraphModel, req: RegRequirement, today: datetime.date):
+    results: List[AssetCompliance] = []
+    for asset in _assets_of_class(g, req.applies_to_class):
         insp, last = _latest_inspection(g, asset.value)
         if insp is None or last is None:
             results.append(AssetCompliance(
@@ -192,6 +192,58 @@ def check_requirement(
             detail=detail, last_date=last.isoformat(), days_since=days,
             interval_days=req.interval_days, evidence=evidence))
     return results
+
+
+def _check_no_open_nonconformance(g: GraphModel, req: RegRequirement):
+    """MET unless an open NonConformance is raised against the asset."""
+    results: List[AssetCompliance] = []
+    for asset in _assets_of_class(g, req.applies_to_class):
+        open_ncrs = []
+        for edge in g.edges_to("Asset", asset.value):
+            if edge.type != "RAISED_AGAINST":
+                continue
+            ncr = g.nodes.get((edge.from_label, edge.from_value))
+            if ncr is not None and (ncr.properties.get("status") or "").lower() == "open":
+                open_ncrs.append(ncr.value)
+        if open_ncrs:
+            results.append(AssetCompliance(
+                asset=asset.value, requirement_id=req.id, code=req.code, status=GAP,
+                detail=f"Open non-conformance(s): {', '.join(open_ncrs)}"))
+        else:
+            results.append(AssetCompliance(
+                asset=asset.value, requirement_id=req.id, code=req.code, status=MET,
+                detail="No open non-conformances."))
+    return results
+
+
+def _check_record_exists(g: GraphModel, req: RegRequirement):
+    """MET if the asset has at least one linked node of the required label."""
+    results: List[AssetCompliance] = []
+    label = req.requires_label
+    for asset in _assets_of_class(g, req.applies_to_class):
+        linked = [e for e in (g.edges_from("Asset", asset.value) + g.edges_to("Asset", asset.value))
+                  if e.from_label == label or e.to_label == label]
+        if linked:
+            results.append(AssetCompliance(
+                asset=asset.value, requirement_id=req.id, code=req.code, status=MET,
+                detail=f"Has {len(linked)} linked {label} record(s)."))
+        else:
+            results.append(AssetCompliance(
+                asset=asset.value, requirement_id=req.id, code=req.code, status=GAP,
+                detail=f"No linked {label} record."))
+    return results
+
+
+def check_requirement(
+    g: GraphModel, req: RegRequirement, today: datetime.date
+) -> List[AssetCompliance]:
+    if req.check_type == "interval_days" and req.interval_days:
+        return _check_interval_days(g, req, today)
+    if req.check_type == "no_open_nonconformance":
+        return _check_no_open_nonconformance(g, req)
+    if req.check_type == "record_exists" and req.requires_label:
+        return _check_record_exists(g, req)
+    return []   # threshold checks arrive with Level 4b readings
 
 
 def run_compliance(
