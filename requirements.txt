@@ -1,0 +1,7 @@
+# Standard entry point: `pip install -r requirements.txt` installs everything
+# needed to run the full app (API + UI + document reading + Gemini/Ollama).
+#
+# Internally split into requirements-l0/-l1/-l3.txt so each pipeline stage can
+# be installed on its own during development (see the Makefile) -- as a user
+# you can ignore that and just use this file.
+-r requirements-l3.txt

@@ -22,6 +22,26 @@ make test         # regression tests
 make scorecard    # every judged metric, computed live
 ```
 
+## Want smarter, cloud-polished answers? Add a free Gemini key
+
+`python run.py` already gives correct, cited answers with **no key at all** —
+composed locally from the same evidence. A key only makes the final answer
+read as a polished paragraph instead of a plainer, code-composed one. To add
+one:
+
+```bash
+cp .env.example .env
+```
+Then open `.env` and paste your key on this line:
+```
+GEMINI_API_KEY=your-key-here
+```
+Get a free key at **https://aistudio.google.com/apikey** (no credit card).
+Restart `python run.py` and you're done — nothing else to configure. This is
+the **online** path (Gemini's cloud API). If you'd rather run the language
+model fully offline on your own machine instead, see
+["Going fully offline"](#going-fully-offline--local-models-via-ollama-optional-not-downloaded-for-you) below.
+
 ## Common questions about setup
 
 **Do I need Docker?** No. Docker only exists for people who *choose* to persist
