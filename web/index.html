@@ -276,6 +276,35 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   vertical-align:-2px;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
 
+/* chat history panel */
+.history-overlay{position:fixed;inset:0;background:hsl(0 0% 0% / .35);z-index:39;
+  opacity:0;pointer-events:none;transition:opacity .18s}
+.history-overlay.open{opacity:1;pointer-events:auto}
+.history-panel{position:fixed;top:0;right:0;bottom:0;width:320px;max-width:88vw;
+  background:hsl(var(--card));border-left:1px solid hsl(var(--border));z-index:40;
+  transform:translateX(100%);transition:transform .2s ease;display:flex;flex-direction:column;
+  box-shadow:-8px 0 32px -12px hsl(0 0% 0% / .3)}
+.history-panel.open{transform:translateX(0)}
+.history-head{padding:16px;border-bottom:1px solid hsl(var(--border));display:flex;
+  align-items:center;justify-content:space-between}
+.history-head h3{font-size:14.5px}
+.history-close{background:none;border:none;cursor:pointer;color:hsl(var(--muted-foreground));
+  font-size:18px;line-height:1;padding:4px}
+.history-new{margin:12px 16px}
+.history-list{flex:1;overflow-y:auto;padding:0 10px 10px}
+.history-item{display:flex;align-items:flex-start;gap:8px;padding:10px 10px;border-radius:8px;
+  cursor:pointer;transition:.12s}
+.history-item:hover{background:hsl(var(--muted))}
+.history-item.active{background:hsl(var(--accent))}
+.history-item .htxt{flex:1;min-width:0}
+.history-item .htitle{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.history-item .hdate{font-size:11px;color:hsl(var(--muted-foreground));margin-top:2px}
+.history-del{background:none;border:none;cursor:pointer;color:hsl(var(--muted-foreground));
+  font-size:14px;padding:2px 4px;border-radius:5px;flex:none}
+.history-del:hover{color:hsl(var(--danger));background:hsl(var(--danger-bg))}
+.history-empty{padding:24px 16px;text-align:center;font-size:12.5px;color:hsl(var(--muted-foreground))}
+
 /* asset timeline (digital-twin history) */
 .tl{position:relative;margin:6px 0 0;padding-left:20px;border-left:2px solid hsl(var(--border))}
 .tl-ev{position:relative;padding:0 0 16px 12px}
@@ -373,6 +402,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
     </div>
     <div class="hright">
       <div class="hstat" id="health"><span class="dot off"></span> connecting…</div>
+      <button class="theme-btn" id="historyBtn" title="Chat history" aria-label="Chat history">🕘</button>
       <button class="theme-btn" id="themeBtn" title="Toggle dark mode" aria-label="Toggle dark mode">◐</button>
     </div>
   </div>
@@ -717,6 +747,14 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   </div>
 </div>
 
+<div class="history-overlay" id="historyOverlay"></div>
+<div class="history-panel" id="historyPanel">
+  <div class="history-head"><h3>Chat history</h3>
+    <button class="history-close" id="historyCloseBtn" aria-label="Close">✕</button></div>
+  <button class="btn btn-outline history-new" id="newChatBtn">+ New chat</button>
+  <div class="history-list" id="historyList"></div>
+</div>
+
 <script>
 const $ = s => document.querySelector(s);
 let GRAPH = null;
@@ -732,6 +770,90 @@ $("#themeBtn").onclick = () => {
 };
 themeIcon();
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>';
+
+/* ── chat history (stored in this browser only — no accounts/backend) ── */
+const CHATS_KEY="sutradhar_chats", CUR_KEY="sutradhar_current_chat";
+function loadChats(){ try{ return JSON.parse(localStorage.getItem(CHATS_KEY))||[]; }catch(e){ return []; } }
+function saveChats(list){ localStorage.setItem(CHATS_KEY, JSON.stringify(list)); }
+function getCurrentChatId(){ return localStorage.getItem(CUR_KEY); }
+function setCurrentChatId(id){ if(id) localStorage.setItem(CUR_KEY, id); else localStorage.removeItem(CUR_KEY); }
+function findChat(id){ return loadChats().find(c=>c.id===id); }
+
+function recordTurn(question, answer){
+  let id=getCurrentChatId();
+  let chats=loadChats();
+  let chat=chats.find(c=>c.id===id);
+  if(!chat){
+    id=String(Date.now())+Math.random().toString(36).slice(2,7);
+    chat={id, title:question.slice(0,60), createdAt:Date.now(), messages:[]};
+    chats.unshift(chat);
+    setCurrentChatId(id);
+  }
+  chat.messages.push({question, answer});
+  chat.updatedAt=Date.now();
+  saveChats(chats);
+  if($("#historyPanel").classList.contains("open")) renderHistoryList();
+}
+function fmtWhen(ts){
+  const d=new Date(ts);
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" · "
+       +d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
+}
+function renderHistoryList(){
+  const chats=loadChats().sort((a,b)=>(b.updatedAt||b.createdAt)-(a.updatedAt||a.createdAt));
+  const curId=getCurrentChatId();
+  if(!chats.length){ $("#historyList").innerHTML='<div class="history-empty">No past conversations yet.</div>'; return; }
+  $("#historyList").innerHTML=chats.map(c=>`
+    <div class="history-item ${c.id===curId?"active":""}" data-id="${c.id}">
+      <div class="htxt"><div class="htitle">${esc(c.title||"New chat")}</div>
+        <div class="hdate">${fmtWhen(c.updatedAt||c.createdAt)} · ${c.messages.length} msg${c.messages.length===1?"":"s"}</div></div>
+      <button class="history-del" data-del="${c.id}" title="Delete">🗑</button>
+    </div>`).join("");
+  $("#historyList").querySelectorAll(".history-item").forEach(el=>{
+    el.onclick=(e)=>{ if(e.target.closest(".history-del")) return; openChat(el.dataset.id); };
+  });
+  $("#historyList").querySelectorAll(".history-del").forEach(btn=>{
+    btn.onclick=(e)=>{ e.stopPropagation(); deleteChat(btn.dataset.del); };
+  });
+}
+function openChat(id){
+  const chat=findChat(id); if(!chat) return;
+  if(document.querySelector('.tab[data-v="ask"]').getAttribute("data-state")!=="active") go("ask");
+  setCurrentChatId(id);
+  $("#chat").innerHTML="";
+  CHATTING=false; startChat();
+  chat.messages.forEach(m=>{
+    const card=document.createElement("div"); card.className="card";
+    card.innerHTML=renderAnswer(m.answer);
+    $("#chat").prepend(card);
+  });
+  closeHistory();
+  renderHistoryList();
+}
+function deleteChat(id){
+  let chats=loadChats().filter(c=>c.id!==id);
+  saveChats(chats);
+  if(getCurrentChatId()===id){ setCurrentChatId(null); startNewChat(); }
+  renderHistoryList();
+}
+function startNewChat(){
+  if(document.querySelector('.tab[data-v="ask"]').getAttribute("data-state")!=="active") go("ask");
+  setCurrentChatId(null);
+  $("#chat").innerHTML="";
+  CHATTING=false;
+  $("#hero").style.display="";
+  $("#askbar").style.display="none";
+  $("#hero").appendChild($("#roleWrap"));
+  const box=document.querySelector(".hero-box");
+  box.insertBefore($("#mic"), box.firstChild);
+  closeHistory();
+}
+function openHistory(){ $("#historyPanel").classList.add("open"); $("#historyOverlay").classList.add("open"); renderHistoryList(); }
+function closeHistory(){ $("#historyPanel").classList.remove("open"); $("#historyOverlay").classList.remove("open"); }
+$("#historyBtn").onclick=openHistory;
+$("#historyCloseBtn").onclick=closeHistory;
+$("#historyOverlay").onclick=closeHistory;
+$("#newChatBtn").onclick=startNewChat;
 
 let CHATTING=false;
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
@@ -811,6 +933,7 @@ async function ask(text){
     const a=await (await fetch("/ask",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({question:q,role:$("#role").value})})).json();
     card.innerHTML=renderAnswer(a);
+    recordTurn(q, a);
   }catch(e){ card.querySelector(".answer").innerHTML=`<span class="badge b-Low">API error</span>`; }
 }
 function renderAnswer(a){
@@ -1123,6 +1246,13 @@ async function loadScore(){
 }
 
 function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* resume the last conversation on page load, so a refresh doesn't lose it */
+(function resumeChat(){
+  const id=getCurrentChatId();
+  const chat=id&&findChat(id);
+  if(chat&&chat.messages.length) openChat(id);
+})();
 </script>
 </body>
 </html>
