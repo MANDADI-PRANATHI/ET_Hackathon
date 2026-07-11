@@ -1,14 +1,15 @@
-# One command for everything: `docker compose up`
+# One command for everything: `docker compose up` (or `make docker-up`)
 #   app      = the API + UI (built from ./Dockerfile)
 #   ollama   = optional fully-local LLM (text + vision) — no models are pulled
 #              automatically; run `make ollama-pull` once you want them
 #   neo4j    = optional persisted graph + Cypher browser (the app works without it)
-#   postgres = app state + the time-series table for equipment readings
-#   minio    = raw document storage (S3-compatible, local)
 #
 # Real documents (data/corpus) and the ingested graph (data/staging) are
 # bind-mounted from this project folder, not hidden inside Docker — open them
 # in a normal file browser, same paths as running python run.py directly.
+#
+# (Postgres and MinIO used to be here too, from the original scaffolding —
+# removed because nothing in the codebase actually connects to either.)
 services:
   app:
     build: .
@@ -56,33 +57,6 @@ services:
     volumes:
       - neo4j_data:/data
 
-  postgres:
-    image: postgres:16
-    container_name: brain-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: brain
-      POSTGRES_PASSWORD: brain
-      POSTGRES_DB: brain
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-
-  minio:
-    image: minio/minio
-    container_name: brain-minio
-    command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"   # API
-      - "9001:9001"   # console UI -> http://localhost:9001
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    volumes:
-      - minio_data:/data
-
 volumes:
   neo4j_data:
-  pg_data:
-  minio_data:
   ollama_models:

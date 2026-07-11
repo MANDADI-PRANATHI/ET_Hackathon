@@ -7,7 +7,7 @@ COMPOSE ?= $(shell command -v docker >/dev/null 2>&1 && echo docker compose || e
 demo:      ## ONE COMMAND: set up everything and launch the app + UI
 	python run.py
 
-up:        ## start Neo4j, Postgres, MinIO (docker or podman — same compose file)
+up:        ## start Neo4j (docker or podman — same compose file)
 	$(COMPOSE) up -d
 
 down:      ## stop the services
@@ -16,7 +16,7 @@ down:      ## stop the services
 logs:      ## tail service logs
 	$(COMPOSE) logs -f
 
-docker-up:   ## ONE COMMAND (Docker): build + run app + Ollama + Neo4j/Postgres/MinIO
+docker-up:   ## ONE COMMAND (Docker): build + run app + Ollama + Neo4j
 	$(COMPOSE) up --build -d
 	@echo "UI: http://localhost:8000/ui   (docker compose logs -f app to watch startup)"
 

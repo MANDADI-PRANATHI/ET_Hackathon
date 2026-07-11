@@ -142,9 +142,9 @@ things, and you can use either, both, or neither:
 ```bash
 make docker-up
 ```
-This builds the app image and starts it alongside Ollama, Neo4j, Postgres,
-and MinIO — UI at http://localhost:8000/ui, Neo4j's browser at
-http://localhost:7474. The app container reads whatever's in `data/corpus/`
+This builds the app image and starts it alongside Ollama and Neo4j — UI at
+http://localhost:8000/ui, Neo4j's browser at http://localhost:7474. The app
+container reads whatever's in `data/corpus/`
 on startup the same way `python run.py` does (no fake data, ever); add more
 documents live via "Connect knowledge" or by dropping files into
 `data/corpus/` and running `docker compose restart app`.
