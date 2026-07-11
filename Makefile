@@ -21,23 +21,23 @@ _pull_models = $(COMPOSE) exec ollama ollama pull qwen2.5:7b && \
 docker-build:  ## build the app image only — nothing started
 	$(COMPOSE) build app
 
-docker-app:    ## 1 — simple app, nothing else
-	$(COMPOSE) up app -d
+docker-app:    ## 1 — simple app, nothing else. Builds + starts, one command.
+	$(COMPOSE) up --build -d app
 	@echo "UI: http://localhost:8000/ui"
 
 docker-ollama: ## 2 — simple app + Ollama (local LLM; models pulled automatically, ~11GB)
-	LLM_PROVIDER=ollama $(COMPOSE) --profile ollama up -d
+	LLM_PROVIDER=ollama $(COMPOSE) --profile ollama up --build -d
 	$(_wait_for_ollama)
 	$(_pull_models)
 	$(COMPOSE) restart app
 	@echo "UI: http://localhost:8000/ui   (local LLM ready, no cloud calls)"
 
 docker-neo4j:  ## 3 — simple app + Neo4j (persisted graph, Cypher browser at :7474)
-	$(COMPOSE) --profile neo4j up -d
+	$(COMPOSE) --profile neo4j up --build -d
 	@echo "UI: http://localhost:8000/ui   Neo4j browser: http://localhost:7474"
 
 docker-both:   ## 4 — simple app + Ollama + Neo4j together
-	LLM_PROVIDER=ollama $(COMPOSE) --profile neo4j --profile ollama up -d
+	LLM_PROVIDER=ollama $(COMPOSE) --profile neo4j --profile ollama up --build -d
 	$(_wait_for_ollama)
 	$(_pull_models)
 	$(COMPOSE) restart app

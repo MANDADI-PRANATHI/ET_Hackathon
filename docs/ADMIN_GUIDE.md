@@ -17,8 +17,15 @@ python run.py           # real use: reads whatever's already in data/corpus/,
 # UI:  http://localhost:8000/ui/index.html
 ```
 This is genuinely enough, including for real use — no Docker, no database
-required. See "Optional: persist the graph in a real database (Neo4j)" in the
-README if you specifically want the graph persisted and Cypher-browsable.
+required. The README's primary path is now Docker (`make docker-app` /
+`docker-ollama` / `docker-neo4j` / `docker-both`); this local path is the
+alternative for development or if you don't want Docker at all.
+
+**PDF-reading addon (Docling), off by default in both paths:** locally, run
+`python run.py --full` once to install it and ingest; in Docker, build with
+`INSTALL_PDF=true docker compose build app` (not one of the four primary
+commands — see `requirements-pdf.txt` for why: it pulls in `torch`/
+`transformers`, several GB, for layout analysis + OCR).
 
 Or step by step:
 
@@ -31,6 +38,25 @@ make api                              # uvicorn brain.api.app:app
 
 Nothing above is *required* for correct, cited answers: no Neo4j, no API key,
 no internet. Each adds a layer when present.
+
+**Running the local LLM manually (outside Docker):** install
+[Ollama](https://ollama.com/download), then pull two balanced, mid-size (7B)
+models — chosen over bigger ones (no data-center GPU needed) and smaller ones
+(miss fields in structured extraction):
+```bash
+ollama pull qwen2.5:7b       # text — answers, compliance-rule authoring, RCA narratives
+ollama pull qwen2.5vl:7b     # vision — reading tags off drawings/P&IDs
+```
+Then in `.env`: `LLM_PROVIDER=ollama`. (`make docker-ollama` does all of this
+automatically inside a container instead, if you're using Docker.)
+
+**Stress-testing with a larger synthetic plant** (`--demo` / `make synth` only
+— never used against real documents):
+```bash
+SCALE=50  python scripts/generate_synthetic.py    # ~400 assets, 4k work orders (default)
+SCALE=200 python scripts/generate_synthetic.py    # a huge plant
+SCALE=0   python scripts/generate_synthetic.py    # canonical demo assets only
+```
 
 ## 2. Configuration (`.env`)
 
