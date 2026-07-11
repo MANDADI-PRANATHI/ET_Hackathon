@@ -27,10 +27,16 @@ No Docker, no database, no `make`, no API key required for either. Opens at
 **Adding your real documents:** drop files under `data/corpus/<folder>/` —
 `work_orders/`, `inspections/`, `incidents/`, `permits/`, `regulations/`,
 `manuals/`, `procedures/`, `operating_instructions/`, `emails/`, `drawings/`,
-`project_files/`, `quality_records/`. Supported formats: `.csv .tsv .txt .md
-.eml .pdf .docx .xlsx .pptx` and images (P&IDs). Then just re-run
-`python run.py` — merging is idempotent, so re-running after adding more
-files never duplicates anything.
+`project_files/`, `quality_records/`. Then just re-run `python run.py` —
+merging is idempotent, so re-running after adding more files never
+duplicates anything.
+
+- **Always supported, no extra install:** `.csv .tsv .txt .md .eml`
+- **`.pdf .docx .xlsx .pptx` need Docling installed** — run
+  `python run.py --full` once instead (installs it, then ingests). Without
+  it, those files are skipped with a warning, not silently ignored.
+- **Drawings/P&IDs (images)** need a vision model configured (Gemini or
+  Ollama) — see the LLM sections above.
 
 ```bash
 make test         # regression tests
@@ -76,6 +82,12 @@ in-app **"Help"** tab for the live version of this table, and
 data to a foreign cloud.
 
 ### Going fully offline — local models via Ollama (optional, not downloaded for you)
+
+This is the manual path — installing Ollama directly on your machine, outside
+Docker. If you're using Docker anyway, `make docker-ollama` below does all of
+this for you in one command (installs nothing on your machine directly, pulls
+the models into the container instead) — skip ahead to "Optional: Docker" if
+that's what you want.
 
 If you want the polished narrative and drawing-reading to run on your own
 machine instead of the cloud, install [Ollama](https://ollama.com/download)
