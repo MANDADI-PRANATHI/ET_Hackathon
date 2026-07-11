@@ -1,0 +1,15 @@
+# What the Docker image actually installs: the lightweight path (tables +
+# regex, no AI needed) + the API server + the Ollama *client* (small, pure
+# Python -- talks to the separate ollama container, doesn't run a model
+# itself). Deliberately excludes docling: it pulls in torch/transformers
+# (multi-GB, crashed a build on a resource-constrained Docker VM) for a
+# capability -- reading real PDF/Word files -- most plants don't need if
+# their documents are already CSV/text/email. If you do have real PDFs to
+# read, run `python run.py --full` locally (one-time), not inside the
+# always-on container -- see the README.
+-r requirements-l0.txt
+ollama>=0.3
+
+fastapi>=0.110
+uvicorn[standard]>=0.29
+httpx>=0.27

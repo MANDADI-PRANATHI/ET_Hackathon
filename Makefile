@@ -16,6 +16,19 @@ down:      ## stop the services
 logs:      ## tail service logs
 	$(COMPOSE) logs -f
 
+docker-up:   ## ONE COMMAND (Docker): build + run app + Ollama + Neo4j/Postgres/MinIO
+	$(COMPOSE) up --build -d
+	@echo "UI: http://localhost:8000/ui   (docker compose logs -f app to watch startup)"
+
+docker-down: ## stop everything started by docker-up
+	$(COMPOSE) down
+
+ollama-pull: ## pull the local-LLM models into the running ollama container
+             ## (several GB — only run this when you actually want it; never automatic)
+	$(COMPOSE) exec ollama ollama pull qwen2.5:7b
+	$(COMPOSE) exec ollama ollama pull qwen2.5vl:7b
+	@echo "Now set LLM_PROVIDER=ollama in .env and restart: $(COMPOSE) restart app"
+
 install:   ## install Level 0 Python dependencies
 	python -m pip install -r requirements-l0.txt
 
@@ -69,6 +82,6 @@ eval:      ## run all benchmarks (extraction + copilot + compliance + rca + less
 test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
-.PHONY: demo up down logs install install-l1 install-l3 init verify synth ingest \
-        ingest-structured build-graph copilot api compliance rca lessons \
-        scorecard eval test
+.PHONY: demo up down logs docker-up docker-down ollama-pull install install-l1 \
+        install-l3 init verify synth ingest ingest-structured build-graph \
+        copilot api compliance rca lessons scorecard eval test

@@ -1,8 +1,49 @@
-# Level 0 — local, free infrastructure. All three run on your machine ($0).
-#   Neo4j    = the "connections store" (graph + built-in meaning/vector search)
-#   Postgres = app state + the time-series table for equipment readings
-#   MinIO    = raw document storage (S3-compatible, local)
+# One command for everything: `docker compose up`
+#   app      = the API + UI (built from ./Dockerfile)
+#   ollama   = optional fully-local LLM (text + vision) — no models are pulled
+#              automatically; run `make ollama-pull` once you want them
+#   neo4j    = optional persisted graph + Cypher browser (the app works without it)
+#   postgres = app state + the time-series table for equipment readings
+#   minio    = raw document storage (S3-compatible, local)
+#
+# Real documents (data/corpus) and the ingested graph (data/staging) are
+# bind-mounted from this project folder, not hidden inside Docker — open them
+# in a normal file browser, same paths as running python run.py directly.
 services:
+  app:
+    build: .
+    container_name: brain-app
+    ports:
+      - "8000:8000"       # UI: http://localhost:8000/ui  ·  API docs: /docs
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      OLLAMA_VISION_MODEL: ${OLLAMA_VISION_MODEL:-qwen2.5vl:7b}
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-password123}
+      ONTOLOGY_PROFILE: ${ONTOLOGY_PROFILE:-config/ontology/oil_and_gas.yaml}
+      STAGING_DIR: /app/data/staging
+      CORPUS_DIR: /app/data/corpus
+    volumes:
+      - ./data/corpus:/app/data/corpus
+      - ./data/staging:/app/data/staging
+      - ./data/readings:/app/data/readings
+      - ./data/graph:/app/data/graph
+    depends_on:
+      - ollama
+      - neo4j
+
+  ollama:
+    image: ollama/ollama
+    container_name: brain-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama   # downloaded models live here, persisted
+
   neo4j:
     image: neo4j:5.23-community
     container_name: brain-neo4j
@@ -44,3 +85,4 @@ volumes:
   neo4j_data:
   pg_data:
   minio_data:
+  ollama_models:
