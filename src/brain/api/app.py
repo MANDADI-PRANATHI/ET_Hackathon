@@ -5,6 +5,7 @@ Endpoints (consumed by the single-file UI at /ui, all usable from curl):
   GET  /roles                     available roles for the copilot
   POST /ask                       {question, role} -> cited, confidence-scored answer
   GET  /assets                    lightweight asset list
+  GET  /documents                 every ingested document, persistent list
   GET  /assets/{tag}/timeline     one asset's dated history, chronological
   GET  /assets/{tag}/summary      asset dashboard header (status, risks, records)
   GET  /graph                     the asset-centric graph, for the visualisation
@@ -127,6 +128,24 @@ def create_app() -> FastAPI:
     @app.get("/assets")
     def assets() -> dict:
         return asset_list(state.kb.g)
+
+    @app.get("/documents")
+    def documents() -> dict:
+        """Every ingested document — the persistent list of what's actually in
+        the brain right now, so 'was my upload really added?' has a real answer
+        beyond the upload confirmation toast."""
+        docs = sorted(
+            state.kb.g.nodes_by_label("Document"),
+            key=lambda n: n.properties.get("ingested_at") or "",
+            reverse=True,
+        )
+        return {"documents": [
+            {"id": n.value, "doc_type": n.properties.get("doc_type") or "",
+             "title": n.properties.get("title") or n.value,
+             "path": n.properties.get("path") or "",
+             "ingested_at": n.properties.get("ingested_at")}
+            for n in docs
+        ]}
 
     @app.get("/assets/{asset}/timeline")
     def timeline(asset: str) -> dict:

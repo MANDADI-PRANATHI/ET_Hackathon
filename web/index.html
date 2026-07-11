@@ -600,6 +600,15 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
       <div id="upResult"></div>
     </div>
     <div class="card">
+      <h3>Documents in the system</h3>
+      <div class="desc">Every document actually ingested right now — the persistent record,
+        not just the upload confirmation above. Refreshes automatically after every upload or sync.</div>
+      <input class="input" id="docFilter" placeholder="Filter by name or type…"
+        style="width:100%;margin-bottom:12px" autocomplete="off" />
+      <div id="docList"><div class="empty">Loading…</div></div>
+      <div class="empty" id="docNone" style="display:none">Nothing matches that filter.</div>
+    </div>
+    <div class="card">
       <h3>2 · Connect a folder</h3>
       <div class="desc">Point the corpus at any folder — including a OneDrive, SharePoint or
         network-drive synced folder — and Sutradhar picks up new and changed files on every sync.
@@ -868,6 +877,7 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   if(t.dataset.v==="warnings") loadWarnings();
   if(t.dataset.v==="score") loadScore();
   if(t.dataset.v==="how") loadHow();
+  if(t.dataset.v==="add") loadDocuments();
 });
 const go=v=>{document.querySelector(`.tab[data-v="${v}"]`).click();window.scrollTo(0,0);};
 document.querySelectorAll(".go-card").forEach(c=>c.onclick=()=>go(c.dataset.go));
@@ -1098,12 +1108,33 @@ async function uploadFiles(files){
       fetch("/health").then(x=>x.json()).then(h=>{$("#health").innerHTML=
         `<span class="dot"></span> ${h.assets} assets · ${h.chunks} passages · ${h.llm_ready?"cloud narrative on":"local mode"}`;});
       refreshBadges();
+      await loadDocuments();
     }catch(err){
       row.className="warn High"; row.style.marginTop="12px";
       row.innerHTML=`<div class="w-msg"><span class="badge b-GAP">failed</span> ${esc(f.name)} — ${esc(String(err.message||err))}</div>`;
     }
   }
   $("#upFile").value="";
+}
+async function loadDocuments(){
+  let d; try{ d=await (await fetch("/documents")).json(); }catch(e){
+    $("#docList").innerHTML='<div class="empty">Documents unavailable.</div>'; return; }
+  if(!d.documents.length){ $("#docList").innerHTML='<div class="empty">No documents ingested yet.</div>'; return; }
+  $("#docList").innerHTML = `<table><thead><tr><th>Document</th><th>Type</th><th>Ingested</th></tr></thead>
+    <tbody id="docRows">${d.documents.map(doc=>{
+      const file=(doc.path||"").split(/[\\/]/).pop() || doc.title;
+      return `<tr><td>${esc(doc.title)}<div class="tl-src" style="margin-top:2px">${esc(file)}</div></td>
+        <td><span class="badge outline">${esc(doc.doc_type)}</span></td>
+        <td class="detail">${esc((doc.ingested_at||"").replace("T"," ").slice(0,16) || "—")}</td></tr>`;
+    }).join("")}</tbody></table>`;
+  $("#docFilter").oninput=()=>{
+    const f=$("#docFilter").value.trim().toLowerCase(); let shown=0;
+    document.querySelectorAll("#docRows tr").forEach(tr=>{
+      const hit=!f||tr.innerText.toLowerCase().includes(f);
+      tr.style.display=hit?"":"none"; if(hit)shown++;
+    });
+    $("#docNone").style.display=shown?"none":"block";
+  };
 }
 $("#syncBtn").onclick=async()=>{
   const box=$("#syncResult");
@@ -1117,6 +1148,7 @@ $("#syncBtn").onclick=async()=>{
       <div class="w-msg">${d.ingested.length} ingested · ${d.unchanged} unchanged — ${list}</div>
       <div class="w-basis">brain now holds ${d.brain.assets} assets · ${d.brain.chunks} passages</div>${fails}</div>`;
     refreshBadges();
+    loadDocuments();
   }catch(e){ box.innerHTML=`<div class="warn High" style="margin-top:12px"><div class="w-msg">Sync failed — is the API running?</div></div>`; }
 };
 
