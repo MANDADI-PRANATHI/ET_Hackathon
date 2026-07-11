@@ -85,8 +85,10 @@ h1,h2,h3{font-family:var(--font-display);letter-spacing:-0.02em;font-weight:600;
 .mono{font-family:var(--font-mono);font-feature-settings:"ss01";letter-spacing:-0.02em}
 
 /* ─── layout ─────────────────────────────────────────────────────────────── */
+/* header + tabs travel as ONE sticky unit — no offset math to break */
+.topnav{position:sticky;top:0;z-index:30}
 header{
-  position:sticky;top:0;z-index:20;background:var(--brand-grad);
+  background:var(--brand-grad);
   border-bottom:1px solid hsl(222 60% 30%/.55);
 }
 .head-inner{max-width:960px;margin:0 auto;padding:14px 20px;display:flex;
@@ -109,8 +111,7 @@ header{
   color:#fff;font-size:14px;display:grid;place-items:center;transition:.15s;padding:0}
 .theme-btn:hover{background:rgba(255,255,255,.2)}
 
-.tabsbar{position:sticky;top:65px;z-index:15;background:hsl(var(--background)/.9);
-  backdrop-filter:blur(8px);border-bottom:1px solid hsl(var(--border))}
+.tabsbar{background:hsl(var(--background));border-bottom:1px solid hsl(var(--border))}
 .tabslist{max-width:960px;margin:0 auto;padding:9px 16px;display:flex;gap:4px;
   overflow-x:auto;scrollbar-width:none}
 .tabslist::-webkit-scrollbar{display:none}
@@ -297,6 +298,16 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   font-family:var(--font-sans)}
 .chip:hover{border-color:hsl(var(--primary));color:hsl(var(--primary));background:hsl(var(--accent))}
 .hero-role{display:flex;justify-content:center;margin-top:20px}
+.tips{max-width:480px;margin:22px auto 0;text-align:left;border:1px solid hsl(var(--border));
+  border-radius:10px;padding:2px 16px;background:hsl(var(--surface))}
+.tips summary{cursor:pointer;padding:12px 0;font-size:13px;font-weight:500;
+  color:hsl(var(--muted-foreground));list-style:none;display:flex;align-items:center;gap:6px}
+.tips summary::-webkit-details-marker{display:none}
+.tips summary::before{content:"▸";transition:transform .15s;color:hsl(var(--primary))}
+.tips[open] summary::before{transform:rotate(90deg)}
+.tips[open] summary{color:hsl(var(--foreground))}
+.tips .plist{padding-bottom:14px}
+.tips .plist li{text-align:left;font-size:12.5px}
 .askbar-inner .field .lbl{display:none}
 .askbar-inner .field{flex:none}
 .askbar-inner .select{max-width:165px}
@@ -316,7 +327,6 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   .head-inner{padding:12px 16px}
   .brand h1{font-size:16px}
   .hstat{display:none}            /* status shown via the online dot elsewhere */
-  .tabsbar{top:61px}
   .wrap{padding:16px 14px 116px}
   .card{padding:16px}
   .meta-row{gap:6px}
@@ -324,6 +334,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
 </style>
 </head>
 <body>
+<div class="topnav">
 <header>
   <div class="head-inner">
     <div class="brand">
@@ -367,6 +378,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
     <button class="tab" data-v="how">Help</button>
   </div>
 </div>
+</div><!-- /.topnav -->
 
 <div class="wrap">
   <!-- ASK -->
@@ -415,6 +427,21 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
           </select>
         </div>
       </div>
+      <details class="tips" id="askTips">
+        <summary>Get the most out of it</summary>
+        <ul class="plist">
+          <li><span class="pcount">1</span><span><b style="font-weight:500">Pick your role before asking.</b>
+            Answers are reframed per role, and personal data is redacted for roles that shouldn't see it.</span></li>
+          <li><span class="pcount">2</span><span><b style="font-weight:500">Trust the citations, not the prose.</b>
+            Every [n] in an answer maps to a source snippet below it.</span></li>
+          <li><span class="pcount">3</span><span><b style="font-weight:500">Read the confidence label.</b>
+            High = multiple agreeing sources; Low = one weak mention — verify, don't just believe.</span></li>
+          <li><span class="pcount">4</span><span><b style="font-weight:500">Feed it and ask immediately.</b>
+            Add a document in Connect knowledge, then ask about it — no rebuild, no waiting.</span></li>
+          <li><span class="pcount">5</span><span><b style="font-weight:500">It answers without internet.</b>
+            If the cloud model is unreachable, the same cited evidence is composed locally instead.</span></li>
+        </ul>
+      </details>
     </div>
     <div id="chat"></div>
   </div>
@@ -459,6 +486,8 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
     </div>
     <div class="card">
       <h3>Get the most out of it</h3>
+      <div class="desc">The five habits that matter most — also one tap away on the
+        <b style="color:hsl(var(--foreground))">Ask</b> page, under the question box.</div>
       <ul class="plist" style="margin-top:8px">
         <li><span class="pcount">1</span><span><b style="font-weight:500">Pick your role before asking.</b>
           Answers are reframed per role, and personal data is redacted for roles that shouldn't see it.</span></li>
@@ -605,7 +634,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
           <tr><td>CSV / TSV tables (registers, CMMS exports)</td><td><span class="badge b-MET">yes</span></td><td class="detail">read by code, highest confidence</td></tr>
           <tr><td>Plain text, Markdown, emails (.eml)</td><td><span class="badge b-MET">yes</span></td><td class="detail">regex finds tags/dates/reg-refs; optional AI reads the prose</td></tr>
           <tr><td>PDF / Word documents</td><td><span class="badge b-MET">yes</span></td><td class="detail">via the Docling parser (optional install)</td></tr>
-          <tr><td>Engineering drawings / P&amp;IDs (images)</td><td><span class="badge b-UNKNOWN">wired, unproven</span></td><td class="detail">a vision-model reader exists and routes correctly, but hasn't been validated against a real P&amp;ID yet — anything it extracts is confidence-capped and flagged "needs review", never trusted silently</td></tr>
+          <tr><td>Engineering drawings / P&amp;IDs (images)</td><td><span class="badge b-Medium">validated on a synthetic drawing</span></td><td class="detail">a live vision-model run correctly read 7/7 planted tags (equipment, instrument, line number) off a generated test P&amp;ID — see <span class="mono">eval/vision_probe.py</span>. A real scanned drawing (noise, rotation, dense linework) is untested. Everything it extracts is confidence-capped and flagged "needs review", never trusted silently</td></tr>
         </tbody>
       </table>
     </div>
@@ -977,15 +1006,39 @@ async function loadCompliance(){
 }
 
 /* ── warnings ── */
+const PATTERN_KIND_LABEL = {
+  recurring_finding: "Recurring finding",
+  recurring_failure_mode: "Recurring failure mode",
+  repeated_action: "Repeated maintenance action",
+  family_cluster: "Equipment-family cluster",
+};
+function renderPatternGroup(kind, items){
+  const label = PATTERN_KIND_LABEL[kind] || kind.replace(/_/g," ");
+  const CAP = 6;
+  const rows = items.map((p,i)=>`<li style="${i>=CAP?"display:none":""}" data-extra="${i>=CAP?1:0}">
+    <span class="pcount">×${p.count}</span>
+    <span>${esc(p.key)} <span style="color:hsl(var(--muted-foreground))">(${p.assets.join(", ")})</span></span></li>`).join("");
+  const more = items.length>CAP
+    ? `<button class="chip" style="margin-top:8px" onclick="this.previousElementSibling.querySelectorAll('[data-extra=\\'1\\']').forEach(li=>li.style.display='flex');this.remove();">Show ${items.length-CAP} more</button>`
+    : "";
+  return `<div style="margin-bottom:16px">
+    <h4 style="font-family:var(--font-display);font-size:13.5px;margin:0 0 8px;display:flex;align-items:center;gap:8px">
+      ${esc(label)} <span class="badge outline">${items.length}</span></h4>
+    <ul class="plist">${rows}</ul>${more}</div>`;
+}
 async function loadWarnings(){
   let d; try{ d=await (await fetch("/warnings")).json(); }catch(e){ return; }
   const ws=d.warnings.map(w=>`<div class="warn ${w.severity}"><div class="w-top">
     <span class="badge b-${w.severity==='High'?'Low':(w.severity==='Medium'?'Medium':'UNKNOWN')}">${w.severity}</span>
     <span class="tag">${esc(w.asset)}</span></div>
     <div class="w-msg">${esc(w.message)}</div><div class="w-basis">basis: ${esc(w.basis)}</div></div>`).join("");
-  const ps=d.patterns.map(p=>`<li><span class="pcount">×${p.count}</span>
-    <span><b style="font-weight:500">${esc(p.kind.replace(/_/g," "))}</b>: ${esc(p.key)}
-    <span style="color:hsl(var(--muted-foreground))">(${p.assets.join(", ")})</span></span></li>`).join("");
+
+  const groups={};
+  d.patterns.forEach(p=>{(groups[p.kind]=groups[p.kind]||[]).push(p);});
+  Object.values(groups).forEach(list=>list.sort((a,b)=>b.count-a.count));
+  const kindsBySize=Object.keys(groups).sort((a,b)=>groups[b].length-groups[a].length);
+  const ps=kindsBySize.map(k=>renderPatternGroup(k, groups[k])).join("");
+
   $("#warnBox").innerHTML=`<div class="card"><h2>Proactive warnings</h2>
     <div class="desc">Pushed before problems recur — from compliance gaps, rising trends, and recurring findings.</div>
     <input class="input" id="warnFilter" placeholder="Filter — try a tag, High, or 'trend'…"
@@ -993,7 +1046,8 @@ async function loadWarnings(){
     <div id="warnList">${ws||'<div class="empty">No active warnings.</div>'}</div>
     <div class="empty" id="warnNone" style="display:none">Nothing matches that filter.</div></div>
     <div class="card"><h2>Recurring patterns in plant history</h2>
-    <div class="desc">Systemic issues no single review would catch.</div><ul class="plist">${ps}</ul></div>`;
+    <div class="desc">Systemic issues no single review would catch — grouped by kind, each
+      showing its worst offenders first.</div>${ps || '<div class="empty">No recurring patterns yet.</div>'}</div>`;
   $("#warnFilter").oninput=()=>{
     const f=$("#warnFilter").value.trim().toLowerCase(); let shown=0;
     document.querySelectorAll("#warnList .warn").forEach(w=>{

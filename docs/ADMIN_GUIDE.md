@@ -146,6 +146,6 @@ pipeline works as designed", not independent validation.
 | Answers say "local mode" | LLM unreachable (no key, no internet, or 429 quota). Not an error — facts/citations unaffected. Gemini free tier: 20 req/day; 429s are retried ~3× with backoff, then fall back. |
 | `/compliance` empty after switching ontology profile | The staged corpus is from another industry — the new profile's asset classes don't exist in it. Ingest a corpus for that industry. |
 | PDF ingestion fails | `docling` not installed (optional, heavy). Plain text/CSV paths are unaffected. |
-| Drawings not ingested | The vision path needs a vision model and is skipped by upload/sync by design; use `make ingest` with a provider configured. |
+| Drawings not ingested | The vision path needs a vision model and is skipped by upload/sync by design; use `make ingest` with a provider configured. Validated once on a synthetic P&ID (`python eval/vision_probe.py`, 7/7 tags read) — a real scanned drawing is untested. |
 | Neo4j connection errors on `build_graph` | Neo4j is optional — the API never needs it. Start it with `make up` only if you want persisted graph + Cypher access. |
 | Uploaded file rejected (415) | Unsupported extension. Supported: .csv .tsv .txt .md .eml (+ .pdf/.docx with docling). |

@@ -158,8 +158,11 @@ python -m pytest tests/ -q                     # regression tests (L0 deps only)
 - AI prose extraction is validated with stubs; live-model accuracy needs a run
   once an API key / Ollama is available. It is capped below structured confidence
   by design.
-- Vision drawing reader is injectable and import-safe but unverified against a
-  real P&ID (needs a vision model). Day-1 de-risk spike in PLAN.md §10.
+- Vision drawing reader is injectable and import-safe. Validated once with a live
+  model call against a generated synthetic P&ID (`eval/vision_probe.py`) — 7/7
+  planted tags read correctly (equipment tags, an instrument tag, a line number).
+  A real scanned drawing (noise, rotation, dense linework, symbol variety) remains
+  untested; treat that as the open gap, not the reader itself.
 - The Ollama path (`LLM_PROVIDER=ollama`) is code-complete but has never been
   run against a live Ollama server in development — treat it as untested, not
   as a demonstrated capability, until it's actually exercised.
