@@ -214,6 +214,7 @@ td.detail{color:hsl(var(--muted-foreground));font-size:13px}
   color:hsl(var(--primary))}
 .tile .v.na{color:hsl(var(--muted-foreground));font-size:20px}
 .tile .k{font-size:12px;color:hsl(var(--muted-foreground));margin-top:8px;font-weight:500}
+.tile .d{font-size:11.5px;color:hsl(var(--muted-foreground));margin-top:6px;line-height:1.45;opacity:.85}
 .speed{margin-top:14px;font-size:12.5px;color:hsl(var(--muted-foreground));
   font-family:var(--font-mono);background:hsl(var(--muted));padding:8px 12px;border-radius:8px}
 .speed b{color:hsl(var(--success))}
@@ -363,7 +364,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
     <button class="tab" data-v="warnings">Warnings</button>
     <button class="tab" data-v="add">Connect knowledge</button>
     <button class="tab" data-v="score">Scorecard</button>
-    <button class="tab" data-v="how">How it works</button>
+    <button class="tab" data-v="how">Help</button>
   </div>
 </div>
 
@@ -410,6 +411,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
             <option value="safety_officer">Safety officer</option>
             <option value="auditor">Auditor</option>
             <option value="operator">Control-room operator</option>
+            <option value="plant_manager">Plant manager</option>
           </select>
         </div>
       </div>
@@ -475,9 +477,11 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   <!-- GRAPH -->
   <div class="view" id="view-graph">
     <div class="card">
-      <div class="field" style="max-width:280px">
-        <label class="lbl" for="assetSel">Asset hub</label>
-        <select class="select" id="assetSel"></select>
+      <div class="field" style="max-width:320px">
+        <label class="lbl" for="assetSel">Asset hub — type a tag or name to search</label>
+        <input class="input" id="assetSel" list="assetList"
+               placeholder="e.g. PSV-110B or Recycle Gas Compressor" autocomplete="off" />
+        <datalist id="assetList"></datalist>
       </div>
       <div class="hr"></div>
       <div id="sumBox"></div>
@@ -549,8 +553,63 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   <!-- SCORECARD -->
   <div class="view" id="view-score"><div id="scoreBox"><div class="card"><div class="empty">Loading…</div></div></div></div>
 
-  <!-- HOW IT WORKS -->
+  <!-- HELP -->
   <div class="view" id="view-how">
+    <div class="card">
+      <h2>How to use each page</h2>
+      <div class="desc">One line per tab — the User Guide in the repo (<span class="mono">docs/USER_GUIDE.md</span>) has the full version.</div>
+      <table>
+        <tbody>
+          <tr><td><b style="font-weight:600">Ask</b></td>
+            <td class="detail">Plain-English questions. Pick your role first; check the citations and the confidence label on every answer.</td></tr>
+          <tr><td><b style="font-weight:600">Overview</b></td>
+            <td class="detail">The dashboard — live counts and shortcuts to everything.</td></tr>
+          <tr><td><b style="font-weight:600">Knowledge Graph</b></td>
+            <td class="detail">Type any tag or name. You get status cards, the connection ring, and the asset's full dated history. Use it before maintenance planning, RCA meetings, or audits.</td></tr>
+          <tr><td><b style="font-weight:600">Compliance</b></td>
+            <td class="detail">MET/GAP per asset, decided by date arithmetic. Filter by tag or "GAP". Gaps come with auto-drafted NCR + corrective-action records.</td></tr>
+          <tr><td><b style="font-weight:600">Warnings</b></td>
+            <td class="detail">Pushed to you, not asked for — overdue checks, rising trends, recurring patterns. Worth a weekly look.</td></tr>
+          <tr><td><b style="font-weight:600">Connect knowledge</b></td>
+            <td class="detail">Feed the brain: upload a file, sync a folder, or push via the REST API. New documents are queryable seconds later.</td></tr>
+          <tr><td><b style="font-weight:600">Scorecard</b></td>
+            <td class="detail">The system grading itself against its own benchmark — each tile explains what it measures.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Why "Viewing as" matters</h3>
+      <div class="desc">Two real differences — framing and privacy, both applied to the same underlying facts:</div>
+      <table>
+        <thead><tr><th>Role</th><th>Answers are framed for…</th><th>Sees personnel names?</th></tr></thead>
+        <tbody>
+          <tr><td>Field technician</td><td class="detail">practical steps, safety first</td><td><span class="badge b-GAP">redacted</span></td></tr>
+          <tr><td>Reliability engineer</td><td class="detail">technical precision, root causes, history</td><td><span class="badge b-GAP">redacted</span></td></tr>
+          <tr><td>Safety officer</td><td class="detail">risk, relief protection, compliance</td><td><span class="badge b-MET">yes</span></td></tr>
+          <tr><td>Auditor</td><td class="detail">evidence, traceability, dates</td><td><span class="badge b-MET">yes</span></td></tr>
+          <tr><td>Control-room operator</td><td class="detail">current status, safe operating limits</td><td><span class="badge b-GAP">redacted</span></td></tr>
+          <tr><td>Plant manager</td><td class="detail">operational risk, downtime, what needs a decision</td><td><span class="badge b-GAP">redacted</span></td></tr>
+        </tbody>
+      </table>
+      <div class="desc" style="margin:10px 0 0">Who-did-what is personal data: only roles with a
+        genuine need (safety officer investigating an incident, auditor verifying records) see names —
+        everyone else gets the same fact with the person redacted.</div>
+    </div>
+
+    <div class="card">
+      <h3>What it can read</h3>
+      <table>
+        <thead><tr><th>Input</th><th>Status</th><th>How</th></tr></thead>
+        <tbody>
+          <tr><td>CSV / TSV tables (registers, CMMS exports)</td><td><span class="badge b-MET">yes</span></td><td class="detail">read by code, highest confidence</td></tr>
+          <tr><td>Plain text, Markdown, emails (.eml)</td><td><span class="badge b-MET">yes</span></td><td class="detail">regex finds tags/dates/reg-refs; optional AI reads the prose</td></tr>
+          <tr><td>PDF / Word documents</td><td><span class="badge b-MET">yes</span></td><td class="detail">via the Docling parser (optional install)</td></tr>
+          <tr><td>Engineering drawings / P&amp;IDs (images)</td><td><span class="badge b-UNKNOWN">wired, unproven</span></td><td class="detail">a vision-model reader exists and routes correctly, but hasn't been validated against a real P&amp;ID yet — anything it extracts is confidence-capped and flagged "needs review", never trusted silently</td></tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="card">
       <h2>How it works — it's a pipeline, not an API wrapper</h2>
       <div class="desc">Most tools "chat over your PDFs". Sutradhar connects knowledge into a graph
@@ -738,17 +797,26 @@ if(SR){ const rec=new SR(); rec.lang="en-IN"; rec.interimResults=false;
 } else { $("#mic").style.display="none"; }
 
 /* ── graph ── */
+let ASSET_MAP={};   // display name (lower) -> tag, plus tag -> tag
 async function loadGraph(){
   const sel=$("#assetSel");
   if(!sel.dataset.loaded){
     try{
       const d=await (await fetch("/assets")).json();
-      sel.innerHTML=d.assets.map(a=>`<option value="${esc(a.value)}">${esc(a.display)}</option>`).join("");
+      $("#assetList").innerHTML=d.assets.map(a=>
+        `<option value="${esc(a.value)}">${esc(a.display)}</option>`).join("");
+      d.assets.forEach(a=>{ ASSET_MAP[a.value.toLowerCase()]=a.value;
+                            ASSET_MAP[(a.display||"").toLowerCase()]=a.value; });
       sel.dataset.loaded="1";
-      sel.onchange=()=>drawAsset(sel.value);
+      const pick=()=>{ const t=ASSET_MAP[sel.value.trim().toLowerCase()];
+                       if(t){ sel.value=t; drawAsset(t); } };
+      sel.onchange=pick;
+      sel.addEventListener("keydown",e=>{ if(e.key==="Enter") pick(); });
+      if(!sel.value && d.assets.length){ sel.value=d.assets[0].value; }
     }catch(e){ return; }
   }
-  if(sel.value) drawAsset(sel.value);
+  const t=ASSET_MAP[sel.value.trim().toLowerCase()];
+  if(t) drawAsset(t);
 }
 async function drawAsset(asset){
   $("#graphBox").innerHTML='<div class="empty">Loading…</div>';
@@ -891,9 +959,21 @@ async function loadCompliance(){
       <span class="badge b-GAP">${d.summary.GAP} gap${d.summary.GAP===1?"":"s"}</span>
       <span class="badge b-UNKNOWN">${d.summary.UNKNOWN} unknown</span>
     </div>
-    <table><thead><tr><th>Asset</th><th>Reg</th><th>Status</th><th>Detail</th></tr></thead><tbody>${rows}</tbody></table>
+    <input class="input" id="compFilter" placeholder="Filter — try a tag (PSV-110B), GAP, or a word from the detail…"
+      style="width:100%;margin-bottom:12px" autocomplete="off" />
+    <table><thead><tr><th>Asset</th><th>Reg</th><th>Status</th><th>Detail</th></tr></thead>
+      <tbody id="compRows">${rows}</tbody></table>
+    <div class="empty" id="compNone" style="display:none">Nothing matches that filter.</div>
   </div>${drafts?`<div class="card"><h2>Auto-drafted QMS actions</h2>
     <div class="desc">Every gap raises a non-conformance and a corrective action, tied to evidence.</div>${drafts}</div>`:""}`;
+  $("#compFilter").oninput=()=>{
+    const f=$("#compFilter").value.trim().toLowerCase(); let shown=0;
+    document.querySelectorAll("#compRows tr").forEach(tr=>{
+      const hit=!f||tr.innerText.toLowerCase().includes(f);
+      tr.style.display=hit?"":"none"; if(hit)shown++;
+    });
+    $("#compNone").style.display=shown?"none":"block";
+  };
 }
 
 /* ── warnings ── */
@@ -908,9 +988,20 @@ async function loadWarnings(){
     <span style="color:hsl(var(--muted-foreground))">(${p.assets.join(", ")})</span></span></li>`).join("");
   $("#warnBox").innerHTML=`<div class="card"><h2>Proactive warnings</h2>
     <div class="desc">Pushed before problems recur — from compliance gaps, rising trends, and recurring findings.</div>
-    ${ws||'<div class="empty">No active warnings.</div>'}</div>
+    <input class="input" id="warnFilter" placeholder="Filter — try a tag, High, or 'trend'…"
+      style="width:100%;margin-bottom:12px" autocomplete="off" />
+    <div id="warnList">${ws||'<div class="empty">No active warnings.</div>'}</div>
+    <div class="empty" id="warnNone" style="display:none">Nothing matches that filter.</div></div>
     <div class="card"><h2>Recurring patterns in plant history</h2>
     <div class="desc">Systemic issues no single review would catch.</div><ul class="plist">${ps}</ul></div>`;
+  $("#warnFilter").oninput=()=>{
+    const f=$("#warnFilter").value.trim().toLowerCase(); let shown=0;
+    document.querySelectorAll("#warnList .warn").forEach(w=>{
+      const hit=!f||w.innerText.toLowerCase().includes(f);
+      w.style.display=hit?"":"none"; if(hit)shown++;
+    });
+    $("#warnNone").style.display=shown?"none":"block";
+  };
 }
 
 /* ── scorecard ── */
@@ -919,22 +1010,33 @@ async function loadScore(){
   const val=x=>{ if(!x||x.error) return null;
     return x.value!==undefined?x.value:(x.groundedness!==undefined?x.groundedness:null); };
   const rows=[
-    ["Entity extraction",d.entity_extraction_accuracy,"F1"],
-    ["Answer groundedness",d.query_answer_quality,""],
-    ["Graph linkage",d.knowledge_graph_linkage_completeness,""],
-    ["Compliance gap",d.compliance_gap_detection,"F1"],
-    ["Cross-functional",d.cross_functional_discovery,"rate"],
-    ["RCA quality",d.rca_quality,""],
-    ["Lessons quality",d.lessons_quality,""],
+    ["Entity extraction",d.entity_extraction_accuracy,"F1",
+     "Are equipment tags, dates and reg-refs pulled out of documents correctly? Checked against hand-labelled files."],
+    ["Answer groundedness",d.query_answer_quality,"",
+     "Do answers actually cite evidence containing the expected facts? Scored on a fixed benchmark of questions."],
+    ["Graph linkage",d.knowledge_graph_linkage_completeness,"",
+     "Share of assets connected to at least one record — how complete the knowledge graph's linking is."],
+    ["Compliance gap",d.compliance_gap_detection,"F1",
+     "Does the compliance agent find exactly the known-overdue assets? Checked against a planted ground truth."],
+    ["Cross-functional",d.cross_functional_discovery,"rate",
+     "How often an answer draws on more than one document type — e.g. a maintenance question answered by a safety doc."],
+    ["RCA quality",d.rca_quality,"",
+     "Does the RCA agent surface the planted root-cause signals (trend, failure mode, recent work)?"],
+    ["Lessons quality",d.lessons_quality,"",
+     "Does the pattern miner find the recurring findings and failure modes seeded in the history?"],
   ];
-  const tiles=rows.map(([k,x,u])=>{const v=val(x);
+  const tiles=rows.map(([k,x,u,why])=>{const v=val(x);
     return `<div class="tile"><div class="v ${v===null?'na':''}">${v===null?'n/a':v}</div>
-      <div class="k">${k}${u?` <span style="opacity:.6">(${u})</span>`:""}</div></div>`;}).join("");
+      <div class="k">${k}${u?` <span style="opacity:.6">(${u})</span>`:""}</div>
+      <div class="d">${why}</div></div>`;}).join("");
   const cp=d.query_answer_quality||{};
   const speed=cp.graph_ms!==undefined
     ?`<div class="speed">time-to-answer &nbsp;·&nbsp; GraphRAG <b>${cp.graph_ms} ms</b> vs keyword ${cp.keyword_ms} ms</div>`:"";
   $("#scoreBox").innerHTML=`<div class="card"><h2>Live scorecard</h2>
-    <div class="desc">Every metric in the brief's evaluation focus — computed live from the running system, not claimed.</div>
+    <div class="desc">Every metric in the brief's evaluation focus — computed live from the running
+      system against its own benchmark corpus, not claimed on a slide. <b>1.0 means "works as
+      designed on our benchmark"</b> — the test questions are self-authored, so treat these as
+      engineering checks, not independent certification.</div>
     <div class="tiles">${tiles}</div>${speed}</div>`;
 }
 

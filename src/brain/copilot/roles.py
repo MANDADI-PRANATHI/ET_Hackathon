@@ -32,6 +32,11 @@ ROLE_FRAMING: Dict[str, str] = {
         "You are advising a control-room operator. Be clear and plain, focused "
         "on current status and safe operating limits."
     ),
+    "plant_manager": (
+        "You are advising a plant manager. Lead with operational risk and "
+        "impact (downtime, compliance exposure), then what needs a decision "
+        "and by when. Keep detail brief; point to the records that matter."
+    ),
 }
 
 # Roles permitted to see personal data (names of people). Others get it redacted.
