@@ -1,21 +1,23 @@
-"""One-command demo runner — sets up everything and launches the app.
+"""One-command runner — installs deps, reads your documents, launches the app.
 
-    python run.py
+    python run.py            reads whatever REAL documents are in data/corpus/
+                              and launches the app. Generates NO fake data. If
+                              data/corpus/ is empty, tells you where to add
+                              files and stops (nothing to ingest yet).
 
-What it does (no Docker, no API key, no heavy ML deps required):
-  1. installs the few Python packages it needs (if missing)
-  2. generates the sample plant data
-  3. reads the documents and extracts facts  (structured + regex path)
-  4. starts the API + UI and opens your browser at http://localhost:8000/ui
+    python run.py --demo     for TRYING THE PRODUCT ONLY: also generates a
+                              full synthetic sample plant (fake work orders,
+                              inspections, incidents...) before launching, so
+                              every feature has something to show immediately.
+                              Never use --demo for real data / a real deployment.
 
-Everything runs from local files, in memory, using plain keyword search — no
-extra ML models to download. For the *full* pipeline (real PDFs via Docling,
-AI prose extraction, vision drawing reading, Neo4j) see README.md — but this
-script is a complete, self-contained working prototype on its own, including
-without any cloud API key at all (see "Runs fully offline" in README.md).
+Either way: reads local files, in memory, using plain keyword search — no
+extra ML models to download, no Docker, no API key required. For a real
+production deployment (Docker, persisted Neo4j, real documents) see the
+"Production setup" section in README.md.
 
-Flags:  --port 8000   --no-open   --full (also install L1/L3 deps, use AI
-        extraction during ingestion itself)
+Flags:  --port 8000   --no-open   --demo   --full (also install L1/L3 deps,
+        use AI extraction during ingestion itself)
 """
 from __future__ import annotations
 
@@ -65,18 +67,36 @@ def ensure_deps(full: bool) -> None:
                                "-r", str(ROOT / "requirements-l3.txt")])
 
 
-def build_corpus(full: bool) -> None:
-    _step("Generating sample plant data")
-    import generate_synthetic
-    generate_synthetic.main()
+def _corpus_has_real_files(corpus_root: pathlib.Path) -> bool:
+    skip = {"SOURCES.md", ".gitkeep"}
+    return any(p.is_file() and p.name not in skip for p in corpus_root.rglob("*"))
+
+
+def build_corpus(full: bool, demo: bool) -> bool:
+    """Returns True if there's something to serve, False if we should stop."""
+    corpus_root = ROOT / "data" / "corpus"
+
+    if demo:
+        _step("Generating synthetic sample plant data (--demo: fake data, for trying the product only)")
+        import generate_synthetic
+        generate_synthetic.main()
+    elif not _corpus_has_real_files(corpus_root):
+        _step("No documents found")
+        print(f"   {corpus_root} is empty — nothing to read yet.\n"
+              "   Add your real documents under data/corpus/<folder>/ (work_orders/, "
+              "inspections/,\n   incidents/, permits/, regulations/, manuals/, ... — see "
+              "docs/ADMIN_GUIDE.md\n   for the full folder list), then run this again.\n\n"
+              "   Just want to try the product first? Run:  python run.py --demo")
+        return False
 
     _step("Reading documents and extracting facts")
     from brain.ingest.pipeline import ingest_corpus
     from brain.ontology import load_ontology
-    counts = ingest_corpus(ROOT / "data" / "corpus", ROOT / "data" / "staging",
+    counts = ingest_corpus(corpus_root, ROOT / "data" / "staging",
                            load_ontology(), use_ai=full)
     print(f"   staged {counts['documents']} documents · {counts['nodes']} facts · "
           f"{counts['chunks']} passages")
+    return True
 
 
 def launch(port: int, open_browser: bool) -> None:
@@ -100,16 +120,20 @@ def launch(port: int, open_browser: bool) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="One-command demo runner")
+    ap = argparse.ArgumentParser(description="One-command setup + launch (see --demo for fake sample data)")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--no-open", action="store_true", help="don't open the browser")
     ap.add_argument("--full", action="store_true",
                     help="also install L1/L3 deps and use AI extraction during ingestion")
+    ap.add_argument("--demo", action="store_true",
+                    help="generate a fake synthetic sample plant to try the product with "
+                         "-- never use this for real data or a real deployment")
     args = ap.parse_args()
 
     print("Sutradhar — one-command setup + launch")
     ensure_deps(args.full)
-    build_corpus(args.full)
+    if not build_corpus(args.full, args.demo):
+        return
     launch(args.port, open_browser=not args.no_open)
 
 

@@ -8,62 +8,77 @@ engineering guide. Everything runs locally and free.
 every tab · [Admin & Developer Guide](docs/ADMIN_GUIDE.md) — configuration, data
 onboarding, endpoints, the full internal pipeline, troubleshooting.
 
-## ⚡ Setup — one command, nothing else needed
+## Production setup — a real deployment, with real documents
+
+This is the path for actually running the product against a real plant's
+documents, with the graph persisted in a real database.
+
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+(free) and Python 3.11+.
+
+```bash
+# 1. Configure — pick ONE language-model path (or leave both blank; the
+#    product still answers correctly, just without a polished paragraph):
+cp .env.example .env
+#   -> Online (Gemini, free tier): paste a key from https://aistudio.google.com/apikey
+#      into GEMINI_API_KEY= in .env
+#   -> Offline (Ollama, runs on your own machine): set LLM_PROVIDER=ollama in
+#      .env — see "Going fully offline" below for which models to pull
+
+# 2. Python environment + dependencies
+python3.11 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Start the database layer (Neo4j for the persisted graph, Postgres, MinIO)
+make up
+make init          # create the Neo4j schema from the ontology
+make verify        # health-check every service + the LLM
+
+# 4. Add your real documents
+#    Drop files under data/corpus/<folder>/ — work_orders/, inspections/,
+#    incidents/, permits/, regulations/, manuals/, procedures/,
+#    operating_instructions/, emails/, drawings/, project_files/,
+#    quality_records/. Supported: .csv .tsv .txt .md .eml .pdf .docx .xlsx
+#    .pptx and images (P&IDs). Full folder-by-folder guide:
+#    docs/ADMIN_GUIDE.md.
+
+# 5. Ingest + build the graph
+make ingest            # structured + regex + AI prose extraction
+make build-graph       # merge into the asset-centric graph, load into Neo4j
+
+# 6. Run it
+make api                # http://localhost:8000/ui  ·  API docs at /docs
+```
+
+Re-running steps 4–5 after adding more documents is safe — merging is
+idempotent, nothing gets duplicated. Neo4j's own browser is at
+http://localhost:7474 if you want to inspect the graph directly with Cypher.
+
+## Try it first — quick local demo (no Docker, no real documents needed)
+
+Before committing to the production setup, you can see the whole product
+working in under a minute:
+
+```bash
+python run.py --demo
+```
+`--demo` generates a full **synthetic** sample plant (fake work orders,
+inspections, incidents, a planted overdue-inspection gap, everything the UI
+needs to demo) and launches the app — no Docker, no database, no API key.
+**This is for trying the product only — never use `--demo` for real data.**
+
 ```bash
 python run.py
 ```
-That's it. No Docker, no database, no API key, nothing to download. It installs
-the handful of small Python packages it needs, generates a sample plant's
-worth of documents, reads them, and opens the app at
-**http://localhost:8000/ui**. Ctrl+C stops it.
+Without `--demo`, nothing fake is generated. This reads whatever real
+documents you've already dropped into `data/corpus/` and launches the app the
+same way. If `data/corpus/` is empty it tells you so and stops — it will not
+silently show you fake data.
 
 ```bash
 make test         # regression tests
 make scorecard    # every judged metric, computed live
 ```
-
-## Want smarter, cloud-polished answers? Add a free Gemini key
-
-`python run.py` already gives correct, cited answers with **no key at all** —
-composed locally from the same evidence. A key only makes the final answer
-read as a polished paragraph instead of a plainer, code-composed one. To add
-one:
-
-```bash
-cp .env.example .env
-```
-Then open `.env` and paste your key on this line:
-```
-GEMINI_API_KEY=your-key-here
-```
-Get a free key at **https://aistudio.google.com/apikey** (no credit card).
-Restart `python run.py` and you're done — nothing else to configure. This is
-the **online** path (Gemini's cloud API). If you'd rather run the language
-model fully offline on your own machine instead, see
-["Going fully offline"](#going-fully-offline--local-models-via-ollama-optional-not-downloaded-for-you) below.
-
-## Common questions about setup
-
-**Do I need Docker?** No. Docker only exists for people who *choose* to persist
-the knowledge graph in a real database (Neo4j) instead of rebuilding it from
-files each run — that's an optional, advanced path (see the admin guide's
-appendix). The app you actually use never touches it.
-
-**Why does the repo have so many `make` commands?** Because each internal
-pipeline stage (ingest, graph-build, ask, compliance, RCA, warnings, scorecard)
-can be run and tested on its own — useful for development, irrelevant for
-using the product. Day to day you only need `python run.py`, `make test`, and
-`make scorecard`.
-
-**What does `--full` do?** `python run.py --full` installs Docling (reads real
-PDFs) and turns on AI-based fact extraction during ingestion. Skip it unless
-you're feeding in real PDF documents — the default already reads CSVs and
-plain text and extracts tags/dates with plain code, no AI needed.
-
-**What are "Level 0/1/2/3…"?** Internal engineering shorthand for pipeline
-stages, left over from how this was built in order. It doesn't mean anything
-is missing if you never see those names — `python run.py` already runs all of
-it.
 
 ## 🔌 Runs fully offline — the LLM is optional
 The system's core intelligence — finding the right evidence, connecting it
@@ -80,20 +95,20 @@ search, deliberately kept simple (see "Why keyword search, not embeddings?" in
 | Answer composed with no LLM configured | **No** | local template over cited evidence |
 | Prose extraction, drawing reading, final narrative | Optional | cloud LLM **or** a local model via Ollama |
 
-With no API key at all, `python run.py` still gives cited, confidence-scored
-answers — the cloud model only adds a polished paragraph on top. See the
+With no API key at all, the system still gives cited, confidence-scored
+answers — the cloud/local model only adds a polished paragraph on top. See the
 in-app **"Help"** tab for the live version of this table, and
 [CLAUDE.md](CLAUDE.md) for why this matters for plants that legally can't send
 data to a foreign cloud.
 
 ### Going fully offline — local models via Ollama (optional, not downloaded for you)
 
-Everything above already runs with **zero LLM at all**. If you also want the
-polished narrative and drawing-reading to run on your own machine instead of
-the cloud, install [Ollama](https://ollama.com/download) and pull two models —
-balanced, mid-size (7B) so they run on a normal laptop CPU/GPU without needing
-a data-center card, and strong for this specific job (structured extraction /
-reading text off an image) rather than the biggest model available:
+If you want the polished narrative and drawing-reading to run on your own
+machine instead of the cloud, install [Ollama](https://ollama.com/download)
+and pull two models — balanced, mid-size (7B) so they run on a normal laptop
+CPU/GPU without needing a data-center card, and strong for this specific job
+(structured extraction / reading text off an image) rather than the biggest
+model available:
 
 | Job | Model | Pull | Size | Model page |
 |---|---|---|---|---|
@@ -120,7 +135,9 @@ Nothing else changes — same endpoints, same UI, same citations. This swap has
 not been run live in this project yet (see CLAUDE.md's known limitations); the
 Gemini cloud path has been the one exercised end to end so far.
 
-**Want to stress-test with a large plant?** The sample size scales:
+**Want to stress-test the demo with a large plant?** The synthetic sample size
+scales (only relevant with `--demo` / `generate_synthetic.py` — never used
+against real documents):
 ```bash
 SCALE=50  python scripts/generate_synthetic.py    # ~400 assets, 4k work orders (default)
 SCALE=200 python scripts/generate_synthetic.py    # a huge plant
@@ -134,8 +151,7 @@ pipeline — why this is a knowledge graph + rule engine, not an API wrapper.
 
 ## Want to go deeper?
 
-Everything above is genuinely all you need to run and use the product. If you
-want to run one pipeline stage at a time, persist the graph in Neo4j, add real
-(non-synthetic) documents, or just see the project layout — that's all in the
+If you want to run one pipeline stage at a time, see every `make` target
+explained, or just see the project layout — that's all in the
 **[Admin & Developer Guide](docs/ADMIN_GUIDE.md)**, clearly marked optional.
 See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the architecture diagram.

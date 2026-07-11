@@ -8,21 +8,28 @@ for engineering conventions and design decisions see [../CLAUDE.md](../CLAUDE.md
 
 ## 1. Quick start
 
+For a real deployment (Docker, persisted Neo4j, your own documents), see
+"Production setup" in the README — that's the primary path now. This section
+covers the lightweight single-command runner, useful for development:
+
 ```bash
-python run.py          # one command: checks deps, ingests the corpus, starts the API
+python run.py --demo    # generates a fake synthetic sample plant, then launches
+                        # (for trying the product only — never for real data)
+python run.py           # reads whatever's already in data/corpus/, generates
+                        # nothing fake; tells you if there's nothing to read yet
 # UI:  http://localhost:8000/ui/index.html
 ```
 
 Or step by step:
 
 ```bash
-pip install -r requirements.txt      # Level 0/1 deps (no torch, no GPU, ~small)
-make synth                           # generate the synthetic demo corpus
-make ingest-structured               # ingest without any AI (CSV + regex only)
-make api                             # uvicorn brain.api.app:app
+pip install -r requirements.txt      # everything needed (no torch, no GPU)
+make synth                           # generate the SYNTHETIC demo corpus (fake data)
+make ingest-structured                # ingest without any AI (CSV + regex only)
+make api                              # uvicorn brain.api.app:app
 ```
 
-Nothing below is *required* for correct, cited answers: no Neo4j, no API key,
+Nothing above is *required* for correct, cited answers: no Neo4j, no API key,
 no internet. Each adds a layer when present.
 
 ## 2. Configuration (`.env`)
@@ -152,33 +159,13 @@ pipeline works as designed", not independent validation.
 
 ---
 
-## Appendix: the full pipeline, stage by stage (optional — only for developers/judges who want to see how it works internally)
+## Appendix: the full pipeline, stage by stage (for developers/judges who want to see how it works internally)
 
-**None of this is required to run or use the product.** `python run.py` already
-does all of it with sensible defaults, no Docker, no API key. This section
-exists for people who want to run one pipeline stage at a time, inspect its
-output, or persist the graph in a real database. The internal stage names
-("Level 1", "Level 2"...) are engineering shorthand from how this was built —
-they don't mean anything is missing if you skip straight to `python run.py`.
-
-### Optional infrastructure (Docker)
-Docker is **only** needed if you want the knowledge graph *persisted* in a
-real graph database (Neo4j, browsable/queryable with Cypher) instead of
-rebuilt in memory each run — plus Postgres and MinIO, which nothing in the
-running API actually requires today. Skip this entirely unless you specifically
-want that.
-```bash
-# one-time
-# Docker Desktop: https://www.docker.com/products/docker-desktop/
-cp .env.example .env                 # if using Gemini: paste a free key from
-                                      # https://aistudio.google.com/apikey
-python3.11 -m venv .venv && source .venv/bin/activate
-make install                         # Python deps
-make up                              # start Neo4j / Postgres / MinIO
-make init                            # create the Neo4j schema from the ontology
-make synth                           # generate the synthetic plant records
-make verify                          # health-check every service + the LLM
-```
+For the Docker/Neo4j production setup, see "Production setup" in the README —
+that's the primary path for a real deployment. This appendix is for running
+one pipeline stage at a time or inspecting its output; the internal stage
+names ("Level 1", "Level 2"...) are engineering shorthand from how this was
+built and don't mean anything is missing if you never see them.
 
 ### Stage by stage
 | Stage | What it does | Command |
