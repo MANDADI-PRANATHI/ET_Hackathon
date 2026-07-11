@@ -10,8 +10,9 @@ demo:      ## ONE COMMAND: set up everything and launch the app + UI
 logs:      ## tail service logs
 	$(COMPOSE) logs -f
 
-# ── Docker: 4 direct commands, no file edits (except your Gemini key in .env,
-# which docker compose reads automatically — same file python run.py uses) ──
+# ── Docker: 4 one-line commands. No file edits, except the Gemini key, which
+# needs a manual edit to .env (docker compose reads it automatically from
+# there — same file python run.py uses; see README.md) ─────────────────────
 _wait_for_ollama = @echo "Waiting for Ollama to start..."; \
 	until $(COMPOSE) exec ollama ollama list >/dev/null 2>&1; do sleep 2; done
 _pull_models = $(COMPOSE) exec ollama ollama pull qwen2.5:7b && \
@@ -20,32 +21,32 @@ _pull_models = $(COMPOSE) exec ollama ollama pull qwen2.5:7b && \
 docker-build:  ## build the app image only — nothing started
 	$(COMPOSE) build app
 
-docker-app:    ## flag 1 — normal: app only, Gemini (needs GEMINI_API_KEY in .env), no addons
+docker-app:    ## 1 — simple app, nothing else
 	$(COMPOSE) up app -d
 	@echo "UI: http://localhost:8000/ui"
 
-docker-neo4j:  ## flag 2 — + Neo4j: persisted graph, Cypher browser at :7474
-	$(COMPOSE) --profile neo4j up -d
-	@echo "UI: http://localhost:8000/ui   Neo4j browser: http://localhost:7474"
-
-docker-ollama: ## flag 3 — + Ollama: fully local LLM, pulls both models automatically (~11GB)
+docker-ollama: ## 2 — simple app + Ollama (local LLM; models pulled automatically, ~11GB)
 	LLM_PROVIDER=ollama $(COMPOSE) --profile ollama up -d
 	$(_wait_for_ollama)
 	$(_pull_models)
 	$(COMPOSE) restart app
 	@echo "UI: http://localhost:8000/ui   (local LLM ready, no cloud calls)"
 
-docker-full:   ## flag 4 — everything: Neo4j + Ollama (auto-pulled) + PDF/Word reading
-	INSTALL_PDF=true LLM_PROVIDER=ollama $(COMPOSE) --profile neo4j --profile ollama up --build -d
+docker-neo4j:  ## 3 — simple app + Neo4j (persisted graph, Cypher browser at :7474)
+	$(COMPOSE) --profile neo4j up -d
+	@echo "UI: http://localhost:8000/ui   Neo4j browser: http://localhost:7474"
+
+docker-both:   ## 4 — simple app + Ollama + Neo4j together
+	LLM_PROVIDER=ollama $(COMPOSE) --profile neo4j --profile ollama up -d
 	$(_wait_for_ollama)
 	$(_pull_models)
 	$(COMPOSE) restart app
-	@echo "UI: http://localhost:8000/ui   Neo4j: http://localhost:7474   (local LLM + PDF reading ready)"
+	@echo "UI: http://localhost:8000/ui   Neo4j: http://localhost:7474   (local LLM ready)"
 
 docker-down:   ## stop everything started by any docker-* target
 	$(COMPOSE) down
 
-ollama-pull: ## re-pull the local-LLM models manually (docker-ollama/docker-full already do this)
+ollama-pull: ## re-pull the local-LLM models manually (docker-ollama/docker-both already do this)
 	$(_pull_models)
 
 install:   ## install Level 0 Python dependencies
@@ -101,7 +102,7 @@ eval:      ## run all benchmarks (extraction + copilot + compliance + rca + less
 test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
-.PHONY: demo logs docker-build docker-app docker-neo4j docker-ollama docker-full \
+.PHONY: demo logs docker-build docker-app docker-ollama docker-neo4j docker-both \
         docker-down ollama-pull install install-l1 install-l3 init verify synth \
         ingest ingest-structured build-graph copilot api compliance rca lessons \
         scorecard eval test

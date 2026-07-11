@@ -147,19 +147,29 @@ exactly four commands, and none of them require editing any file —
   `sudo` every time: `sudo usermod -aG docker $USER` (log out/in after).
 - **Mac / Windows:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free).
 
-| Flag | Command | What it does |
+| # | Command | What it does |
 |---|---|---|
-| **1 — Normal** | `make docker-app` | App only. Gemini, if `GEMINI_API_KEY` is in `.env` — otherwise still works, just without the polished narrative. |
-| **2 — + Neo4j** | `make docker-neo4j` | Persisted graph, Cypher browser at http://localhost:7474. |
-| **3 — + Ollama** | `make docker-ollama` | Fully local LLM — **pulls both models automatically** (~11GB, real download, only real one), then switches the app to use them. One command, nothing else to run. |
-| **4 — Full** | `make docker-full` | Everything together: Neo4j + Ollama (auto-pulled) + PDF/Word reading (Docling). |
+| **1** | `make docker-app` | Simple app, nothing else. Uses Gemini if `GEMINI_API_KEY` is in `.env` — see below. |
+| **2** | `make docker-ollama` | Simple app + Ollama. **Pulls both local-LLM models automatically** (~11GB, the one real download) then switches the app to use them — one command, nothing else to run. |
+| **3** | `make docker-neo4j` | Simple app + Neo4j. Persisted graph, Cypher browser at http://localhost:7474. |
+| **4** | `make docker-both` | Simple app + Ollama + Neo4j together. |
 
 `make docker-build` builds the image only, without starting anything.
-`make docker-down` stops whichever flag you started.
+`make docker-down` stops whichever one you started.
 
-Each of these is self-contained — the Dockerfile already installs every
+**Only the Gemini key needs a file edited — everything else above is just
+the one command, nothing to configure:**
+```bash
+cp .env.example .env
+```
+then open `.env` and paste your key on the `GEMINI_API_KEY=` line (get a free
+one at https://aistudio.google.com/apikey). Skip this entirely if you're
+using `make docker-ollama`/`make docker-both`, or don't need the cloud
+narrative — the app still answers correctly either way.
+
+Each command is self-contained — the Dockerfile already installs every
 Python dependency and copies in all the code, so once it's running there's
-nothing else to separately `pip install` or `python run.py`. Whichever flag
+nothing else to separately `pip install` or `python run.py`. Whichever one
 you use, the app container reads whatever's in `data/corpus/` on startup the
 same way `python run.py` does (no fake data, ever); add more documents live
 via "Connect knowledge" or by dropping files into `data/corpus/` and running

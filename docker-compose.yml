@@ -1,11 +1,12 @@
-# Everything off by default (false). Turn addons on with a Makefile target or
-# the raw commands in README.md — see that file for the full 4-addon table:
+# Everything off by default. Four one-line commands (see README.md):
+#   make docker-app      1 — simple app, nothing else
+#   make docker-ollama   2 — simple app + Ollama (local LLM, models auto-pulled)
+#   make docker-neo4j    3 — simple app + Neo4j (persisted graph, Cypher browser)
+#   make docker-both     4 — simple app + Ollama + Neo4j together
 #
-#   docker compose up app -d                    App only, nothing else
-#   docker compose --profile neo4j up -d        + Neo4j  (persisted graph, Cypher browser)
-#   docker compose --profile ollama up -d       + Ollama (fully local LLM)
-#   INSTALL_PDF=true docker compose build app   + PDF/Word reading (Docling)
-#   ... any of the above combine — see README.md for the exact combined commands
+# PDF/Word reading (Docling) is a separate, advanced switch, not one of the
+# four above — build with INSTALL_PDF=true if you specifically need it; see
+# requirements-pdf.txt for why it isn't on by default.
 #
 # Real documents (data/corpus) and the ingested graph (data/staging) are
 # bind-mounted from this project folder, not hidden inside Docker — open them
