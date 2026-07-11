@@ -46,9 +46,13 @@ docker-both:   ## 4 — simple app + Ollama + Neo4j together
 docker-down:   ## stop everything started by any docker-* target
 	$(COMPOSE) down
 
-docker-demo:   ## DEV ONLY — generate + ingest a fake sample plant into a running docker-* app
+docker-demo:   ## DEV/DEMO — generate + ingest a fake sample plant into a running docker-* app
 	curl -X POST http://localhost:8000/dev/seed-demo-data
-	@echo "\nUI: http://localhost:8000/ui   (fake demo data loaded — never do this against real data)"
+	@echo "\nUI: http://localhost:8000/ui   (fake demo data loaded, isolated under data/corpus/*/demo/)"
+
+docker-demo-undo: ## DEV/DEMO — remove exactly what docker-demo added, leaves real data untouched
+	curl -X POST http://localhost:8000/dev/delete-demo-data
+	@echo "\nUI: http://localhost:8000/ui   (demo data removed)"
 
 ollama-pull: ## re-pull the local-LLM models manually (docker-ollama/docker-both already do this)
 	$(_pull_models)
@@ -107,6 +111,6 @@ test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
 .PHONY: demo logs docker-build docker-app docker-ollama docker-neo4j docker-both \
-        docker-down docker-demo ollama-pull install install-l1 install-l3 init \
-        verify synth ingest ingest-structured build-graph copilot api compliance \
-        rca lessons scorecard eval test
+        docker-down docker-demo docker-demo-undo ollama-pull install install-l1 \
+        install-l3 init verify synth ingest ingest-structured build-graph copilot \
+        api compliance rca lessons scorecard eval test

@@ -38,6 +38,22 @@ cp .env.example .env
 then open `.env` and paste your key on the `GEMINI_API_KEY=` line — get a
 free one at https://aistudio.google.com/apikey.
 
+## Want to try it with sample data first?
+
+```bash
+make docker-demo          # generate + ingest a fake sample plant
+make docker-demo-undo     # remove exactly what that added
+```
+(Or the same two actions as buttons in the UI's "Connect knowledge" tab.)
+**Safe to run even against a real deployment** — every fake file lives under
+a `data/corpus/<category>/demo/` subfolder, so it can never overwrite a real
+file of the same name, and the undo command removes exactly (and only) what
+was added. (One exception: sensor readings live in one flat file, not a
+folder — the generator refuses to touch it if it already has real data, see
+[ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md).) Verified: added demo data, confirmed
+a "real" file at the same canonical filename survived untouched, then fully
+reverted with the undo command back to the exact original state.
+
 ## Adding your documents — through the UI, that's the only way
 
 Once it's running, open the **"Connect knowledge"** tab and drag in your

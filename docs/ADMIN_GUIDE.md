@@ -81,6 +81,24 @@ SCALE=200 python scripts/generate_synthetic.py    # a huge plant
 SCALE=0   python scripts/generate_synthetic.py    # canonical demo assets only
 ```
 
+**Demo data is isolated and reversible, even against a real deployment.**
+Every file `generate_synthetic.py` writes lives under
+`data/corpus/<category>/demo/` — never a real filename — so it can't collide
+with or overwrite anything real; router doc-type mapping is unaffected
+(keyed off the top-level category folder, not the exact file depth).
+`POST /dev/delete-demo-data` (or `make docker-demo-undo`, or the UI's
+"Dev: delete demo data" button) removes exactly the files under those
+`demo/` folders plus their staged JSON, then rebuilds — verified live: added
+demo data, confirmed a same-named "real" file was untouched, deleted the
+demo data, confirmed the brain's chunk count returned to its exact prior
+value. **The one file this can't isolate:** `data/readings/readings.csv` is
+a single flat file (not folder-routed) read directly by the RCA/warnings
+agents — the generator checks it first and refuses to write if it already
+has content, so real sensor data is never overwritten, but delete-demo-data
+also can't selectively remove *just* the demo rows from it if it was empty
+when seeded (there's nothing to distinguish once written). If you need to
+reset it, delete `data/readings/readings.csv` yourself and re-seed.
+
 ## 2. Configuration (`.env`)
 
 | Variable | Default | What it does |

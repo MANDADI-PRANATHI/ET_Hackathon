@@ -5,6 +5,14 @@ Everything references the same small asset list so it links cleanly in the graph
 One inspection (PSV-110B) is deliberately overdue — that's the gap the Level 4a
 compliance checker should catch in the demo.
 
+Every file this writes lives under a `demo/` subfolder inside its category
+folder (e.g. data/corpus/work_orders/demo/work_orders.csv, never
+data/corpus/work_orders/work_orders.csv directly) — so it can never collide
+with or overwrite a real file of the same name, and can be cleanly deleted
+later (POST /dev/delete-demo-data, or `rm -rf data/corpus/*/demo`) without
+touching anything real. Doc-type routing is unaffected: the router keys off
+the top-level category folder, not the exact filename depth.
+
 Run with:  make synth   (or:  python scripts/generate_synthetic.py)
 """
 from __future__ import annotations
@@ -18,6 +26,7 @@ import random
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CORPUS = ROOT / "data" / "corpus"
+DEMO = "demo"   # every corpus write nests under <category>/demo/
 TODAY = datetime.date(2026, 6, 24)
 random.seed(42)
 
@@ -50,7 +59,7 @@ def asset_register() -> None:
         for (t, n, c, m) in ASSETS
     ]
     _write(
-        CORPUS / "project_files" / "asset_register.csv",
+        CORPUS / "project_files" / DEMO / "asset_register.csv",
         ["tag", "name", "asset_class", "manufacturer", "unit", "criticality"],
         rows,
     )
@@ -71,7 +80,7 @@ def work_orders() -> None:
             random.choice(PEOPLE),
         ))
     _write(
-        CORPUS / "work_orders" / "work_orders.csv",
+        CORPUS / "work_orders" / DEMO / "work_orders.csv",
         ["wo_number", "asset_tag", "action", "date", "status", "performed_by"],
         rows,
     )
@@ -89,7 +98,7 @@ def inspections() -> None:
             last.isoformat(), random.choice(["Pass", "Pass", "Observation"]),
         ))
     _write(
-        CORPUS / "inspections" / "inspections.csv",
+        CORPUS / "inspections" / DEMO / "inspections.csv",
         ["inspection_id", "asset_tag", "type", "last_inspection_date", "result"],
         rows,
     )
@@ -106,7 +115,7 @@ def permits() -> None:
             date.isoformat(), random.choice(["Closed", "Active", "Closed"]),
         ))
     _write(
-        CORPUS / "permits" / "permits.csv",
+        CORPUS / "permits" / DEMO / "permits.csv",
         ["permit_no", "asset_tag", "work_type", "issue_date", "status"],
         rows,
     )
@@ -126,14 +135,16 @@ def nonconformances() -> None:
             date.isoformat(), f"CAPA-{50 + i}", random.choice(["Open", "Closed"]),
         ))
     _write(
-        CORPUS / "quality_records" / "nonconformances.csv",
+        CORPUS / "quality_records" / DEMO / "nonconformances.csv",
         ["ncr_id", "asset_tag", "finding", "raised_date", "capa_id", "status"],
         rows,
     )
 
 
 def _write_text(rel_path: str, content: str) -> None:
-    path = CORPUS / rel_path
+    # rel_path is "<category>/<filename>" -- nest under <category>/demo/<filename>.
+    category, _, filename = rel_path.partition("/")
+    path = CORPUS / category / DEMO / filename
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content.strip() + "\n", encoding="utf-8")
     print(f"  wrote {path.relative_to(ROOT)}")
@@ -231,10 +242,11 @@ relief valve while the drum is in service.
     )
 
 
-def readings() -> None:
+def readings() -> bool:
     """Weekly operating readings. P-101A vibration trends UP for weeks before the
     2026-05-18 seal-failure incident (so the RCA agent can connect the dots);
-    other assets stay flat as a control."""
+    other assets stay flat as a control. Returns False (and writes nothing) if
+    a real readings.csv already exists, so bulk() knows not to append either."""
     rows = []
     # P-101A vibration rising 2.4 -> 7.2 mm/s over 10 weeks up to the trip.
     start = datetime.date(2026, 3, 12)
@@ -250,9 +262,18 @@ def readings() -> None:
         ts = start + datetime.timedelta(weeks=wk)
         rows.append(("P-101B", "vibration", ts.isoformat(),
                      round(2.3 + (wk % 3) * 0.1, 2), "mm/s"))
-    READINGS = ROOT / "data" / "readings"
-    _write(READINGS / "readings.csv",
-           ["asset_tag", "parameter", "timestamp", "value", "unit"], rows)
+    # readings.csv has no natural "demo/" home -- it's one flat file the RCA
+    # agent reads directly (READINGS_FILE), not something routed by folder.
+    # Refuse to overwrite it if it already has real content; only ever fill
+    # it fresh (missing or empty), so a real deployment's sensor data is
+    # never at risk.
+    target = ROOT / "data" / "readings" / "readings.csv"
+    if target.exists() and target.stat().st_size > 0:
+        print(f"  skipped {target.relative_to(ROOT)} (already has data — "
+              "not overwriting; delete it yourself first if you want fresh demo readings)")
+        return False
+    _write(target, ["asset_tag", "parameter", "timestamp", "value", "unit"], rows)
+    return True
 
 
 # =============================================================================
@@ -365,12 +386,12 @@ accordance with {reg}. Do not bypass protective devices while in service.
 """)
 
 
-def bulk(scale: int, assets_all) -> None:
+def bulk(scale: int, assets_all, write_readings: bool = True) -> None:
     print(f"\nGenerating BULK data (scale={scale})...")
     n_assets = scale * 8
     extra = _build_assets(n_assets)
     assets_all.extend(extra)
-    _append(CORPUS / "project_files" / "asset_register.csv",
+    _append(CORPUS / "project_files" / DEMO / "asset_register.csv",
             [(t, n, c, m, u, cr) for (t, n, c, m, u, cr) in extra])
 
     # work orders (bulk) across ALL assets
@@ -382,7 +403,7 @@ def bulk(scale: int, assets_all) -> None:
         wo.append((f"WO-{20000+i}", random.choice(tags), random.choice(ACTIONS_BULK),
                    d.isoformat(), random.choice(["Completed", "Open", "Closed", "Closed"]),
                    random.choice(PEOPLE_BULK)))
-    _append(CORPUS / "work_orders" / "work_orders.csv", wo)
+    _append(CORPUS / "work_orders" / DEMO / "work_orders.csv", wo)
 
     # one inspection per extra asset (valves 6-mo cycle -> some naturally overdue)
     insp = []
@@ -390,7 +411,7 @@ def bulk(scale: int, assets_all) -> None:
         d = TODAY - datetime.timedelta(days=random.randint(15, 500))
         insp.append((f"INSP-{20000+i}", t, "Statutory" if c == "Valve" else "Routine",
                      d.isoformat(), random.choice(["Pass", "Pass", "Observation", "Fail"])))
-    _append(CORPUS / "inspections" / "inspections.csv", insp)
+    _append(CORPUS / "inspections" / DEMO / "inspections.csv", insp)
 
     # permits (bulk)
     n_permit = scale * 15
@@ -400,7 +421,7 @@ def bulk(scale: int, assets_all) -> None:
         d = TODAY - datetime.timedelta(days=random.randint(0, 120))
         permits_rows.append((f"PTW-{20000+i}", random.choice(tags), random.choice(ptypes),
                              d.isoformat(), random.choice(["Closed", "Active", "Closed"])))
-    _append(CORPUS / "permits" / "permits.csv", permits_rows)
+    _append(CORPUS / "permits" / DEMO / "permits.csv", permits_rows)
 
     # non-conformances + CAPAs (bulk)
     n_ncr = scale * 10
@@ -409,7 +430,7 @@ def bulk(scale: int, assets_all) -> None:
         d = TODAY - datetime.timedelta(days=random.randint(5, 800))
         ncr_rows.append((f"NCR-{20000+i}", random.choice(tags), random.choice(FINDINGS),
                         d.isoformat(), f"CAPA-{20000+i}", random.choice(["Open", "Closed"])))
-    _append(CORPUS / "quality_records" / "nonconformances.csv", ncr_rows)
+    _append(CORPUS / "quality_records" / DEMO / "nonconformances.csv", ncr_rows)
 
     # narrative documents (bulk text files -> prose extraction + cross-links)
     n_inc, n_email, n_sop = min(scale, 60), min(scale, 70), min(scale // 2, 40)
@@ -421,17 +442,19 @@ def bulk(scale: int, assets_all) -> None:
         _bulk_narrative("sop", i, extra)
     print(f"  +{n_inc+n_email+n_sop} narrative documents")
 
-    # readings for a subset of assets (some rising -> RCA/warnings signal)
-    n_read = min(scale // 2, 40)
-    rd = []
-    for a in random.sample(extra, min(n_read, len(extra))):
-        rising = random.random() < 0.35
-        base = random.uniform(2.0, 3.5)
-        for wk in range(11):
-            ts = datetime.date(2026, 3, 12) + datetime.timedelta(weeks=wk)
-            val = base + (wk * random.uniform(0.3, 0.6) if rising else random.uniform(-0.1, 0.1))
-            rd.append((a[0], "vibration", ts.isoformat(), round(max(0.5, val), 2), "mm/s"))
-    _append(ROOT / "data" / "readings" / "readings.csv", rd)
+    # readings for a subset of assets (some rising -> RCA/warnings signal) --
+    # only if readings() actually wrote (i.e. there was no real file to protect).
+    if write_readings:
+        n_read = min(scale // 2, 40)
+        rd = []
+        for a in random.sample(extra, min(n_read, len(extra))):
+            rising = random.random() < 0.35
+            base = random.uniform(2.0, 3.5)
+            for wk in range(11):
+                ts = datetime.date(2026, 3, 12) + datetime.timedelta(weeks=wk)
+                val = base + (wk * random.uniform(0.3, 0.6) if rising else random.uniform(-0.1, 0.1))
+                rd.append((a[0], "vibration", ts.isoformat(), round(max(0.5, val), 2), "mm/s"))
+        _append(ROOT / "data" / "readings" / "readings.csv", rd)
 
     print(f"\nTOTAL assets: {len(assets_all)}  ·  bulk work orders: {n_wo}  ·  "
           f"permits: {n_permit}  ·  NCRs: {n_ncr}")
@@ -455,9 +478,9 @@ def main() -> None:
     permits()
     nonconformances()
     narrative_documents()
-    readings()
+    wrote_readings = readings()
     if scale > 0:
-        bulk(scale, list(ASSETS))
+        bulk(scale, list(ASSETS), write_readings=wrote_readings)
     print(
         "\nDone. (Set SCALE=0 for canonical-only, or SCALE=200 for a huge plant.)"
         "\nAdd real public PDFs to the corpus folders too (see data/corpus/SOURCES.md)."

@@ -15,7 +15,8 @@ Endpoints (consumed by the single-file UI at /ui, all usable from curl):
   GET  /compliance                compliance report + evidence package + drafts
   POST /upload                    add one document -> ingest -> brain updates live
   POST /sync                      re-scan the corpus folder for new/changed files
-  POST /dev/seed-demo-data        DEV ONLY: generate + ingest a fake sample plant
+  POST /dev/seed-demo-data        DEV/DEMO: generate + ingest a fake sample plant
+  POST /dev/delete-demo-data      DEV/DEMO: remove exactly what seed-demo-data added
 
 The knowledge base is built once at startup from data/staging (no Neo4j needed)
 and refreshed in place whenever /upload or /sync ingests something new. The LLM
@@ -280,10 +281,13 @@ def create_app() -> FastAPI:
 
     @app.post("/dev/seed-demo-data")
     def seed_demo_data() -> dict:
-        """DEV ONLY: generate a fake synthetic sample plant into data/corpus and
-        ingest it. Never call this against a real deployment — it writes fake
-        documents alongside anything already there, mixing fake and real data
-        in the same brain with no way to tell them apart afterward."""
+        """DEV/DEMO USE: generate a fake synthetic sample plant and ingest it.
+        Safe to run against a real deployment's data — every file this writes
+        lives under a data/corpus/<category>/demo/ subfolder (never a real
+        filename), so it can never overwrite anything real, and can be
+        removed later with POST /dev/delete-demo-data. The one exception is
+        data/readings/readings.csv (a single flat file, not folder-routed):
+        the generator refuses to touch it if it already has real content."""
         import sys as _sys
         _sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
         import generate_synthetic
@@ -295,6 +299,42 @@ def create_app() -> FastAPI:
         return {
             "documents": counts["documents"], "nodes": counts["nodes"],
             "chunks": counts["chunks"],
+            "brain": {"assets": len(state.kb.g.nodes_by_label("Asset")),
+                      "chunks": len(state.kb.chunks)},
+        }
+
+    @app.post("/dev/delete-demo-data")
+    def delete_demo_data() -> dict:
+        """DEV/DEMO USE: remove every fake document seed-demo-data added, and
+        only those — identified by the data/corpus/<category>/demo/ folder
+        every demo file is written under, which no real document is ever
+        placed in. Real documents (anywhere else in data/corpus/) are
+        untouched. Does not remove data/readings/readings.csv (see
+        seed-demo-data's docstring — it may hold real data)."""
+        import shutil
+
+        from brain.schema import StagedDoc
+
+        removed_corpus = 0
+        for demo_dir in CORPUS.glob("*/demo"):
+            if demo_dir.is_dir():
+                removed_corpus += sum(1 for f in demo_dir.rglob("*") if f.is_file())
+                shutil.rmtree(demo_dir)
+
+        removed_staged = 0
+        for f in STAGING.glob("*.json"):
+            try:
+                path = StagedDoc.read(f).document.path.replace("\\", "/")
+            except Exception:
+                continue
+            if "/demo/" in path:
+                f.unlink()
+                removed_staged += 1
+
+        _load()
+        return {
+            "removed_corpus_files": removed_corpus,
+            "removed_staged_documents": removed_staged,
             "brain": {"assets": len(state.kb.g.nodes_by_label("Asset")),
                       "chunks": len(state.kb.chunks)},
         }

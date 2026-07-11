@@ -624,9 +624,11 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
         padding:12px 14px;border-radius:8px;overflow-x:auto;margin:0">curl -X POST "http://plant-server:8000/upload?filename=wo_4432.csv&amp;folder=work_orders" \
      --data-binary @wo_4432.csv</pre>
     </div>
-    <div style="display:flex;justify-content:flex-end;margin-top:4px">
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
       <button class="btn btn-outline" id="devSeedBtn" style="font-size:12px;padding:0 12px;height:32px;opacity:.7"
-        title="Developer/demo use only">⚙ Dev: load fake demo data</button>
+        title="Developer/demo use only — isolated, safe to run on real data">⚙ Dev: load fake demo data</button>
+      <button class="btn btn-outline" id="devDeleteBtn" style="font-size:12px;padding:0 12px;height:32px;opacity:.7"
+        title="Removes exactly what 'load fake demo data' added">🗑 Dev: delete demo data</button>
     </div>
     <div id="devSeedResult"></div>
   </div>
@@ -1157,10 +1159,14 @@ $("#syncBtn").onclick=async()=>{
   }catch(e){ box.innerHTML=`<div class="warn High" style="margin-top:12px"><div class="w-msg">Sync failed — is the API running?</div></div>`; }
 };
 
+function _refreshHealthPill(){
+  fetch("/health").then(x=>x.json()).then(h=>{$("#health").innerHTML=
+    `<span class="dot"></span> ${h.assets} assets · ${h.chunks} passages · ${h.llm_ready?"cloud narrative on":"local mode"}`;});
+}
 $("#devSeedBtn").onclick=async()=>{
-  if(!confirm("This generates a FAKE synthetic sample plant and ingests it "+
-    "alongside whatever's already here — for development/demo use only. "+
-    "Never do this against a real deployment's data. Continue?")) return;
+  if(!confirm("This generates a fake synthetic sample plant and ingests it. "+
+    "It's isolated under data/corpus/*/demo/ so it can never overwrite real "+
+    "documents, and you can remove it later with 'Dev: delete demo data'. Continue?")) return;
   const box=$("#devSeedResult");
   box.innerHTML=`<div class="empty" style="padding:12px 0 0"><span class="spin"></span>Generating fake demo data…</div>`;
   try{
@@ -1171,8 +1177,24 @@ $("#devSeedBtn").onclick=async()=>{
       <div class="w-basis">brain now holds ${d.brain.assets} assets · ${d.brain.chunks} passages</div></div>`;
     refreshBadges();
     await loadDocuments();
-    fetch("/health").then(x=>x.json()).then(h=>{$("#health").innerHTML=
-      `<span class="dot"></span> ${h.assets} assets · ${h.chunks} passages · ${h.llm_ready?"cloud narrative on":"local mode"}`;});
+    _refreshHealthPill();
+  }catch(e){ box.innerHTML=`<div class="warn High" style="margin-top:12px"><div class="w-msg">Failed — is the API running?</div></div>`; }
+};
+$("#devDeleteBtn").onclick=async()=>{
+  if(!confirm("This removes every fake document 'Dev: load fake demo data' added "+
+    "(anything under data/corpus/*/demo/). Real documents elsewhere are never "+
+    "touched. Continue?")) return;
+  const box=$("#devSeedResult");
+  box.innerHTML=`<div class="empty" style="padding:12px 0 0"><span class="spin"></span>Removing demo data…</div>`;
+  try{
+    const d=await (await fetch("/dev/delete-demo-data",{method:"POST"})).json();
+    box.innerHTML=`<div class="warn Low" style="margin-top:12px">
+      <div class="w-top"><span class="badge b-MET">${ICON_CHECK}removed</span></div>
+      <div class="w-msg">${d.removed_corpus_files} demo file(s), ${d.removed_staged_documents} staged document(s)</div>
+      <div class="w-basis">brain now holds ${d.brain.assets} assets · ${d.brain.chunks} passages</div></div>`;
+    refreshBadges();
+    await loadDocuments();
+    _refreshHealthPill();
   }catch(e){ box.innerHTML=`<div class="warn High" style="margin-top:12px"><div class="w-msg">Failed — is the API running?</div></div>`; }
 };
 
