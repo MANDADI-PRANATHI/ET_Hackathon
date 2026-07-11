@@ -149,3 +149,90 @@ pipeline works as designed", not independent validation.
 | Drawings not ingested | The vision path needs a vision model and is skipped by upload/sync by design; use `make ingest` with a provider configured. Validated once on a synthetic P&ID (`python eval/vision_probe.py`, 7/7 tags read) — a real scanned drawing is untested. |
 | Neo4j connection errors on `build_graph` | Neo4j is optional — the API never needs it. Start it with `make up` only if you want persisted graph + Cypher access. |
 | Uploaded file rejected (415) | Unsupported extension. Supported: .csv .tsv .txt .md .eml (+ .pdf/.docx with docling). |
+
+---
+
+## Appendix: the full pipeline, stage by stage (optional — only for developers/judges who want to see how it works internally)
+
+**None of this is required to run or use the product.** `python run.py` already
+does all of it with sensible defaults, no Docker, no API key. This section
+exists for people who want to run one pipeline stage at a time, inspect its
+output, or persist the graph in a real database. The internal stage names
+("Level 1", "Level 2"...) are engineering shorthand from how this was built —
+they don't mean anything is missing if you skip straight to `python run.py`.
+
+### Optional infrastructure (Docker)
+Docker is **only** needed if you want the knowledge graph *persisted* in a
+real graph database (Neo4j, browsable/queryable with Cypher) instead of
+rebuilt in memory each run — plus Postgres and MinIO, which nothing in the
+running API actually requires today. Skip this entirely unless you specifically
+want that.
+```bash
+# one-time
+# Docker Desktop: https://www.docker.com/products/docker-desktop/
+cp .env.example .env                 # if using Gemini: paste a free key from
+                                      # https://aistudio.google.com/apikey
+python3.11 -m venv .venv && source .venv/bin/activate
+make install                         # Python deps
+make up                              # start Neo4j / Postgres / MinIO
+make init                            # create the Neo4j schema from the ontology
+make synth                           # generate the synthetic plant records
+make verify                          # health-check every service + the LLM
+```
+
+### Stage by stage
+| Stage | What it does | Command |
+|---|---|---|
+| Ingest | Corpus files → source-stamped, confidence-scored facts (tables/regex, no AI; prose optionally via LLM) | `make ingest-structured` (no AI) or `make ingest` (adds AI prose extraction; needs `--full`'s deps) |
+| Graph build | Merge staged facts into one asset-centric graph; entity resolution; metrics + viz export | `make build-graph` (loads into Neo4j if reachable; the model/metrics/export always run without it) |
+| Ask (copilot) | GraphRAG: graph traversal + keyword search → cited, confidence-scored, role-aware answer | `make copilot Q="..."` (CLI) or `make api` (HTTP) |
+| Compliance | LLM authors a checkable rule from regulation text; plain code decides MET/GAP | `make compliance` |
+| RCA | Fuse graph history + live readings into ranked root-cause findings | `make rca ASSET=P-101A` |
+| Lessons/warnings | Mine recurring patterns; push a prioritised warning feed | `make lessons` |
+| Scorecard | Every judged metric, computed live | `make scorecard` |
+
+Benchmarks per stage: `python eval/extraction_eval.py`, `eval/copilot_bench.py`,
+`eval/compliance_eval.py`, `eval/rca_eval.py`, `eval/lessons_eval.py` — or
+`python -m pytest tests/ -q` for the full regression suite.
+
+### Adding real (non-synthetic) documents
+`make synth` fills the structured folders with generated data. To add real
+public PDFs (CSB incident reports, OISD/OSHA regulations, OEM manuals, sample
+P&IDs), drop them under `data/corpus/<folder>/` — see
+[data/corpus/SOURCES.md](../data/corpus/SOURCES.md) for the folder-to-doctype
+mapping and reused asset tags. The corpus already ships with two real CSB
+investigation summaries and the actual OSHA 29 CFR 1910.119(j) text, each
+tracing to a citable public source.
+
+Supported formats: `.csv`/`.tsv` (code, no AI) · `.pdf .docx .doc .xlsx .xls
+.pptx .html` (via Docling — `make install-l1`) · `.txt .md .eml` (stdlib) ·
+`.png .jpg .jpeg .tif .tiff .bmp` (drawings, via a vision model). One
+unreadable file is skipped with a warning, never crashes the batch. After
+adding files: `make ingest && make build-graph` (MERGE is idempotent — no
+duplication on re-runs).
+
+### Project layout
+```
+config/ontology/oil_and_gas.yaml   the asset-centric vocabulary (swap to change industry)
+src/brain/config.py                all settings (reads .env)
+src/brain/ontology.py              loads + validates the ontology
+src/brain/providers/llm.py         Gemini / Ollama switch
+src/brain/stores/neo4j_init.py     creates the graph schema
+src/brain/schema.py                the staging data model (facts + chunks)
+src/brain/ingest/                  readers, patterns, extraction, pipeline
+src/brain/search/keyword.py        BM25 keyword search (also the passage-retrieval engine)
+src/brain/graph/                   merge model, resolution, metrics, export
+src/brain/stores/graph_writer.py   persist the merged graph into Neo4j
+src/brain/retrieval/knowledge.py   GraphRAG retrieval (graph + keyword search)
+src/brain/copilot/answer.py        cited/confidence/role-aware answers + extractive fallback
+src/brain/agents/                  compliance, RCA, lessons-learned
+src/brain/stores/readings.py       readings adapter (time-series / OPC-UA-MQTT-shaped)
+src/brain/api/app.py               FastAPI backend (/ask /graph /compliance /rca /warnings /scorecard)
+web/index.html                     mobile-first UI (served at /ui)
+eval/                              benchmarks (extraction, copilot, compliance, rca, lessons, scorecard)
+scripts/verify_setup.py            health-check
+scripts/generate_synthetic.py      synthetic plant records (SCALE=N to grow it)
+run.py                             one-command setup + launch
+tests/                             regression tests (Level 0 deps only)
+data/corpus/                       the document corpus (by type; includes real CSB/OSHA references)
+```
