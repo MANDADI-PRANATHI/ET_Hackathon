@@ -120,16 +120,17 @@ SCALE=0   python scripts/generate_synthetic.py    # canonical demo assets only
 
 ---
 
-## Optional: everything in Docker (app + local LLM + persisted graph)
+## Optional: Docker — three simple choices
 
 Everything above already builds the knowledge graph and serves the API — no
-database required, no Docker required. Docker is an add-on for two separate
-things, and you can use either, both, or neither:
-- **Persisted graph** — Neo4j, so the graph survives a restart without
-  re-ingesting, and is browsable/queryable with Cypher.
-- **A fully local LLM** — an Ollama container serving the two models from
-  "Going fully offline" above, so the narrative/vision layer never leaves
-  your machine.
+database required, no Docker required. Docker only adds two independent
+things on top, and you pick at most one addon at a time (or none):
+
+| Choice | Command | Adds |
+|---|---|---|
+| **1. App only** | `make docker-app` | Just the containerized API + UI. No addons. |
+| **2. App + Neo4j** | `make docker-neo4j` | Persisted graph, Cypher-browsable at http://localhost:7474. |
+| **3. App + Ollama** | `make docker-ollama` | A fully local LLM (see "Going fully offline" above) — the narrative/vision layer never leaves your machine. |
 
 **Install Docker first, if you don't have it:**
 - **Linux:** `curl -fsSL https://get.docker.com | sh` (official convenience
@@ -138,18 +139,17 @@ things, and you can use either, both, or neither:
   `sudo` every time: `sudo usermod -aG docker $USER` (log out/in after).
 - **Mac / Windows:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free).
 
-**Then, one command:**
+**Just want to check the image builds, without starting anything?**
 ```bash
-make docker-up
+make docker-build
 ```
-This builds the app image and starts it alongside Ollama and Neo4j — UI at
-http://localhost:8000/ui, Neo4j's browser at http://localhost:7474. The app
-container reads whatever's in `data/corpus/`
-on startup the same way `python run.py` does (no fake data, ever); add more
-documents live via "Connect knowledge" or by dropping files into
-`data/corpus/` and running `docker compose restart app`.
 
-**No Ollama model is downloaded automatically** — that's a deliberate,
+Whichever choice you run, the app container reads whatever's in
+`data/corpus/` on startup the same way `python run.py` does (no fake data,
+ever); add more documents live via "Connect knowledge" or by dropping files
+into `data/corpus/` and running `docker compose restart app`.
+
+**Choice 3 never downloads a model automatically** — that's a deliberate,
 separate step, since the models are several GB:
 ```bash
 make ollama-pull                     # pulls both models into the container
@@ -162,9 +162,9 @@ The Docker image is intentionally lightweight — no Docling, no `torch` (see
 ingestion once locally with `python run.py --full`, rather than installing
 those heavy packages into the always-on container.
 
-`make down` / `make docker-down` stops everything. Everything else — `/ask`,
-compliance, RCA, warnings, the UI — works identically with or without any of
-this; the API never requires Neo4j or Ollama to be running.
+`make docker-down` stops whichever choice you started. Everything else —
+`/ask`, compliance, RCA, warnings, the UI — works identically with or without
+any of this; the API never requires Neo4j or Ollama to be running.
 
 ---
 

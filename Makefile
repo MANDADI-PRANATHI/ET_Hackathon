@@ -7,27 +7,33 @@ COMPOSE ?= $(shell command -v docker >/dev/null 2>&1 && echo docker compose || e
 demo:      ## ONE COMMAND: set up everything and launch the app + UI
 	python run.py
 
-up:        ## start Neo4j (docker or podman — same compose file)
-	$(COMPOSE) up -d
-
-down:      ## stop the services
-	$(COMPOSE) down
-
 logs:      ## tail service logs
 	$(COMPOSE) logs -f
 
-docker-up:   ## ONE COMMAND (Docker): build + run app + Ollama + Neo4j
-	$(COMPOSE) up --build -d
-	@echo "UI: http://localhost:8000/ui   (docker compose logs -f app to watch startup)"
+# ── Docker: three simple choices, pick one ──────────────────────────────────
+docker-build:  ## build the app image only — nothing started
+	$(COMPOSE) build app
 
-docker-down: ## stop everything started by docker-up
+docker-app:    ## Choice 1 — app only, no addons
+	$(COMPOSE) up app -d
+	@echo "UI: http://localhost:8000/ui"
+
+docker-neo4j:  ## Choice 2 — app + Neo4j (persisted graph, Cypher browser at :7474)
+	$(COMPOSE) --profile neo4j up -d
+	@echo "UI: http://localhost:8000/ui   Neo4j browser: http://localhost:7474"
+
+docker-ollama: ## Choice 3 — app + Ollama (fully local LLM; run ollama-pull after)
+	$(COMPOSE) --profile ollama up -d
+	@echo "UI: http://localhost:8000/ui   Now run: make ollama-pull"
+
+docker-down:   ## stop everything started by any docker-* target
 	$(COMPOSE) down
 
 ollama-pull: ## pull the local-LLM models into the running ollama container
              ## (several GB — only run this when you actually want it; never automatic)
 	$(COMPOSE) exec ollama ollama pull qwen2.5:7b
 	$(COMPOSE) exec ollama ollama pull qwen2.5vl:7b
-	@echo "Now set LLM_PROVIDER=ollama in .env and restart: $(COMPOSE) restart app"
+	@echo "Now set LLM_PROVIDER=ollama in .env and: $(COMPOSE) restart app"
 
 install:   ## install Level 0 Python dependencies
 	python -m pip install -r requirements-l0.txt
@@ -82,6 +88,7 @@ eval:      ## run all benchmarks (extraction + copilot + compliance + rca + less
 test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
-.PHONY: demo up down logs docker-up docker-down ollama-pull install install-l1 \
-        install-l3 init verify synth ingest ingest-structured build-graph \
-        copilot api compliance rca lessons scorecard eval test
+.PHONY: demo logs docker-build docker-app docker-neo4j docker-ollama docker-down \
+        ollama-pull install install-l1 install-l3 init verify synth ingest \
+        ingest-structured build-graph copilot api compliance rca lessons \
+        scorecard eval test

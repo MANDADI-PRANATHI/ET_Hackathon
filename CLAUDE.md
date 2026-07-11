@@ -136,7 +136,7 @@ across documents by `(label, value)`; it never needs to know how a fact was foun
 ## How to run
 ```bash
 python run.py                                 # one command: setup + launch (see README)
-make up && make init && make synth            # infra + schema + synthetic corpus (Level 0)
+make docker-neo4j && make init && make synth  # Neo4j + schema + synthetic corpus (optional)
 make ingest-structured                        # Level 1 without AI (L0 deps only)
 make ingest                                    # Level 1 full (needs L1 deps + LLM configured)
 python eval/extraction_eval.py                 # entity-extraction accuracy benchmark

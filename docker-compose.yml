@@ -1,8 +1,8 @@
-# One command for everything: `docker compose up` (or `make docker-up`)
-#   app      = the API + UI (built from ./Dockerfile)
-#   ollama   = optional fully-local LLM (text + vision) — no models are pulled
-#              automatically; run `make ollama-pull` once you want them
-#   neo4j    = optional persisted graph + Cypher browser (the app works without it)
+# Three simple choices — pick one, or none:
+#
+#   docker compose up app -d                    App only
+#   docker compose --profile neo4j up -d        App + Neo4j  (persisted graph, Cypher browser)
+#   docker compose --profile ollama up -d       App + Ollama (fully local LLM)
 #
 # Real documents (data/corpus) and the ingested graph (data/staging) are
 # bind-mounted from this project folder, not hidden inside Docker — open them
@@ -33,13 +33,12 @@ services:
       - ./data/staging:/app/data/staging
       - ./data/readings:/app/data/readings
       - ./data/graph:/app/data/graph
-    depends_on:
-      - ollama
-      - neo4j
+    # No depends_on: neo4j/ollama are opt-in profiles below, not always started.
 
   ollama:
     image: ollama/ollama
     container_name: brain-ollama
+    profiles: ["ollama"]
     ports:
       - "11434:11434"
     volumes:
@@ -48,6 +47,7 @@ services:
   neo4j:
     image: neo4j:5.23-community
     container_name: brain-neo4j
+    profiles: ["neo4j"]
     ports:
       - "7474:7474"   # browser UI  -> http://localhost:7474
       - "7687:7687"   # bolt (app connects here)
