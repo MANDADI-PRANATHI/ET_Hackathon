@@ -278,6 +278,37 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   transition:border-color .15s,background .15s}
 .drop:hover,.drop.on{border-color:hsl(var(--primary));background:hsl(var(--accent))}
 
+/* hero ask (empty-state, Claude-style) */
+.hero{max-width:660px;margin:7vh auto 0;text-align:center;padding:0 6px}
+.hero-mark{width:54px;height:54px;border-radius:14px;background:var(--brand-grad);
+  display:grid;place-items:center;margin:0 auto 18px;box-shadow:var(--shadow-md)}
+.hero-mark svg{width:30px;height:30px;background:none;border:none;border-radius:0}
+.hero h2{font-size:26px;margin-bottom:6px}
+.hero-sub{color:hsl(var(--muted-foreground));font-size:14px;margin:0 0 22px}
+.hero-box{display:flex;gap:8px;background:hsl(var(--card));border:1px solid hsl(var(--input));
+  border-radius:14px;padding:9px;box-shadow:var(--shadow);align-items:center;text-align:left}
+.hero-box:focus-within{border-color:hsl(var(--ring));box-shadow:0 0 0 3px hsl(var(--ring)/.14)}
+.hero-box .input{border:none;box-shadow:none;flex:1;background:transparent}
+.hero-box .input:focus{box-shadow:none;outline:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:18px}
+.chip{border:1px solid hsl(var(--border));background:hsl(var(--card));color:hsl(var(--foreground));
+  border-radius:999px;padding:7px 14px;font-size:12.5px;cursor:pointer;transition:.15s;
+  font-family:var(--font-sans)}
+.chip:hover{border-color:hsl(var(--primary));color:hsl(var(--primary));background:hsl(var(--accent))}
+.hero-role{display:flex;justify-content:center;margin-top:20px}
+.askbar-inner .field .lbl{display:none}
+.askbar-inner .field{flex:none}
+.askbar-inner .select{max-width:165px}
+
+/* overview dashboard */
+.home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:12px}
+.go-card{background:hsl(var(--card));border:1px solid hsl(var(--border));border-radius:10px;
+  padding:15px 16px;cursor:pointer;transition:.15s;text-align:left}
+.go-card:hover{border-color:hsl(var(--primary));box-shadow:var(--shadow-md)}
+.go-card h4{font-family:var(--font-display);font-size:14px;margin:0 0 4px;
+  color:hsl(var(--primary))}
+.go-card p{margin:0;font-size:12.5px;color:hsl(var(--muted-foreground));line-height:1.5}
+
 /* ─── mobile ─────────────────────────────────────────────────────────────── */
 @media (max-width:560px){
   body{font-size:14.5px}
@@ -326,6 +357,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
 <div class="tabsbar">
   <div class="tabslist" id="tabs">
     <button class="tab" data-v="ask" data-state="active">Ask</button>
+    <button class="tab" data-v="home">Overview</button>
     <button class="tab" data-v="graph">Knowledge Graph</button>
     <button class="tab" data-v="compliance">Compliance</button>
     <button class="tab" data-v="warnings">Warnings</button>
@@ -338,13 +370,39 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
 <div class="wrap">
   <!-- ASK -->
   <div class="view active" id="view-ask">
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
-        <div>
-          <h2>Ask the plant brain</h2>
-          <div class="desc" style="margin:0">Cited, confidence-scored answers across every document — framed for your role.</div>
-        </div>
-        <div class="field" style="min-width:170px">
+    <div class="hero" id="hero">
+      <div class="hero-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".85">
+            <path d="M12 12 12 3.6"/><path d="M12 12 19.3 7.8"/><path d="M12 12 19.3 16.2"/>
+            <path d="M12 12 12 20.4"/><path d="M12 12 4.7 16.2"/><path d="M12 12 4.7 7.8"/>
+          </g>
+          <g fill="#fff">
+            <circle cx="12" cy="3.6" r="1.7"/><circle cx="19.3" cy="7.8" r="1.7"/>
+            <circle cx="19.3" cy="16.2" r="1.7"/><circle cx="12" cy="20.4" r="1.7"/>
+            <circle cx="4.7" cy="16.2" r="1.7"/><circle cx="4.7" cy="7.8" r="1.7"/>
+          </g>
+          <circle cx="12" cy="12" r="3" fill="#fff"/>
+          <circle cx="12" cy="12" r="1.3" fill="#012884"/>
+        </svg>
+      </div>
+      <h2>Ask the plant brain</h2>
+      <p class="hero-sub">Every document your plant has ever produced — one cited,
+        confidence-scored answer, framed for your role.</p>
+      <div class="hero-box">
+        <button class="btn btn-outline btn-icon" id="mic" title="Voice input" aria-label="Voice input">🎙</button>
+        <input class="input" id="hq" placeholder="Ask anything across the plant's knowledge…" autocomplete="off" />
+        <button class="btn btn-primary" id="heroSend">Ask</button>
+      </div>
+      <div class="chips" id="chips">
+        <button class="chip">Is PSV-110B overdue for inspection?</button>
+        <button class="chip">Why did P-101A fail?</button>
+        <button class="chip">What protects V-204 and at what setpoint?</button>
+        <button class="chip">Which assets have open non-conformances?</button>
+        <button class="chip">What work was done on C-102 last year?</button>
+      </div>
+      <div class="hero-role">
+        <div class="field" id="roleWrap" style="min-width:190px">
           <label class="lbl" for="role">Viewing as</label>
           <select class="select" id="role">
             <option value="engineer">Reliability engineer</option>
@@ -357,9 +415,61 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
       </div>
     </div>
     <div id="chat"></div>
-    <p class="hint">Try &nbsp;<b>“Is PSV-110B overdue for inspection?”</b> &nbsp;·&nbsp;
-      <b>“Why did P-101A fail?”</b> &nbsp;·&nbsp;
-      <b>“What protects V-204 and at what setpoint?”</b></p>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="view" id="view-home">
+    <div class="card">
+      <h2>Your plant's knowledge, in one brain</h2>
+      <div class="desc">Sutradhar reads every document the plant produces — work orders,
+        inspections, incidents, permits, regulations, manuals — and connects all of it to the
+        equipment it's about. Ask in plain English; every answer is cited and confidence-scored.</div>
+      <div class="statrow">
+        <div class="stat"><div class="n" id="homeAssets">—</div><div class="l">assets in the graph</div></div>
+        <div class="stat"><div class="n" id="homeChunks">—</div><div class="l">searchable passages</div></div>
+        <div class="stat"><div class="n" id="homeGaps">—</div><div class="l">compliance gaps</div></div>
+        <div class="stat"><div class="n" id="homeWarn">—</div><div class="l">active warnings</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>What you can do here</h3>
+      <div class="desc">Each card takes you to that part of the app.</div>
+      <div class="home-grid">
+        <div class="go-card" data-go="ask"><h4>Ask a question →</h4>
+          <p>Plain-English answers with citations and a confidence score. Pick your role —
+             a technician and an auditor see the same fact framed differently.</p></div>
+        <div class="go-card" data-go="graph"><h4>Explore an asset →</h4>
+          <p>One equipment tag → its status, open risks, every connected record, and its
+             full chronological history (the asset timeline).</p></div>
+        <div class="go-card" data-go="compliance"><h4>Check compliance →</h4>
+          <p>Every asset checked against regulation by exact date math — MET or GAP, with an
+             audit-ready evidence package and auto-drafted corrective actions.</p></div>
+        <div class="go-card" data-go="warnings"><h4>Review warnings →</h4>
+          <p>Pushed to you before problems repeat: overdue statutory checks, rising sensor
+             trends, and failure patterns recurring across the plant.</p></div>
+        <div class="go-card" data-go="add"><h4>Connect knowledge →</h4>
+          <p>Drop a document, sync a folder, or push via the REST API — the brain updates
+             live and the very next question can use the new file.</p></div>
+        <div class="go-card" data-go="score"><h4>See the scorecard →</h4>
+          <p>The system grades itself against its own benchmark — extraction accuracy,
+             answer quality, graph completeness — live, not in a slide.</p></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Get the most out of it</h3>
+      <ul class="plist" style="margin-top:8px">
+        <li><span class="pcount">1</span><span><b style="font-weight:500">Pick your role before asking.</b>
+          Answers are reframed per role, and personal data is redacted for roles that shouldn't see it.</span></li>
+        <li><span class="pcount">2</span><span><b style="font-weight:500">Trust the citations, not the prose.</b>
+          Every [n] in an answer maps to a source snippet below it — the answer is only as good as its sources.</span></li>
+        <li><span class="pcount">3</span><span><b style="font-weight:500">Read the confidence label.</b>
+          High = multiple agreeing sources; Low = a single weak mention. Low-confidence answers tell you what to verify, not what to believe.</span></li>
+        <li><span class="pcount">4</span><span><b style="font-weight:500">Feed it and ask immediately.</b>
+          Add a document in Connect knowledge, then ask about it — no rebuild, no waiting.</span></li>
+        <li><span class="pcount">5</span><span><b style="font-weight:500">It answers without internet.</b>
+          If the cloud model is unreachable, answers are composed locally from the same cited evidence — the facts never change, only the prose polish.</span></li>
+      </ul>
+    </div>
   </div>
 
   <!-- GRAPH -->
@@ -500,10 +610,9 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   </div>
 </div>
 
-<div class="askbar" id="askbar">
+<div class="askbar" id="askbar" style="display:none">
   <div class="askbar-inner">
-    <button class="btn btn-outline btn-icon" id="mic" title="Voice input" aria-label="Voice input">🎙</button>
-    <input class="input" id="q" placeholder="Ask anything across the plant's knowledge…" autocomplete="off" />
+    <input class="input" id="q" placeholder="Ask a follow-up…" autocomplete="off" />
     <button class="btn btn-primary" id="send">Ask</button>
   </div>
 </div>
@@ -524,18 +633,31 @@ $("#themeBtn").onclick = () => {
 themeIcon();
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>';
 
+let CHATTING=false;
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.setAttribute("data-state",""));
   document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
   t.setAttribute("data-state","active");
   $("#view-"+t.dataset.v).classList.add("active");
-  $("#askbar").style.display = t.dataset.v==="ask" ? "block":"none";
+  $("#askbar").style.display = (t.dataset.v==="ask" && CHATTING) ? "block":"none";
+  if(t.dataset.v==="home") loadHome();
   if(t.dataset.v==="graph") loadGraph();
   if(t.dataset.v==="compliance") loadCompliance();
   if(t.dataset.v==="warnings") loadWarnings();
   if(t.dataset.v==="score") loadScore();
   if(t.dataset.v==="how") loadHow();
 });
+const go=v=>{document.querySelector(`.tab[data-v="${v}"]`).click();window.scrollTo(0,0);};
+document.querySelectorAll(".go-card").forEach(c=>c.onclick=()=>go(c.dataset.go));
+async function loadHome(){
+  try{const h=await (await fetch("/health")).json();
+    $("#homeAssets").textContent=h.assets; $("#homeChunks").textContent=h.chunks;
+  }catch(e){}
+  try{const c=await (await fetch("/compliance")).json();
+    $("#homeGaps").textContent=c.summary.GAP;}catch(e){$("#homeGaps").textContent="—";}
+  try{const w=await (await fetch("/warnings")).json();
+    $("#homeWarn").textContent=w.warnings.length;}catch(e){$("#homeWarn").textContent="—";}
+}
 async function loadHow(){
   let h={}; try{ h=await (await fetch("/health")).json(); }catch(e){}
   $("#howstats").innerHTML=[
@@ -554,8 +676,19 @@ fetch("/health").then(r=>r.json()).then(h=>{
 }).catch(()=>{ $("#health").innerHTML = `<span class="dot off"></span> API offline`; });
 
 /* ── ask ── */
-async function ask(){
-  const q=$("#q").value.trim(); if(!q) return; $("#q").value="";
+function startChat(){
+  if(CHATTING) return; CHATTING=true;
+  $("#hero").style.display="none";
+  $("#askbar").style.display="block";
+  // the mic and role picker follow the conversation down to the ask bar
+  const inner=$(".askbar-inner");
+  inner.prepend($("#mic"));
+  inner.prepend($("#roleWrap"));
+}
+async function ask(text){
+  const q=(text||$("#hq").value||$("#q").value).trim(); if(!q) return;
+  $("#hq").value=""; $("#q").value="";
+  startChat();
   const card=document.createElement("div"); card.className="card";
   card.innerHTML=`<div class="q-head"><span class="qmark">Q</span><span class="q-text">${esc(q)}</span></div>
     <div class="answer"><span class="spin"></span>Reasoning across the knowledge graph…</div>`;
@@ -590,8 +723,11 @@ function renderAnswer(a){
     </div>
     <div class="cites">${cites}</div>`;
 }
-$("#send").onclick=ask;
+$("#send").onclick=()=>ask();
 $("#q").addEventListener("keydown",e=>{if(e.key==="Enter")ask();});
+$("#heroSend").onclick=()=>ask();
+$("#hq").addEventListener("keydown",e=>{if(e.key==="Enter")ask();});
+document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>ask(c.textContent));
 
 /* ── voice ── */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;

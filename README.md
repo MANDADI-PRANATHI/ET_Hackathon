@@ -4,6 +4,10 @@ ET AI Hackathon 2026 · Problem Statement #8 — Industrial Knowledge Intelligen
 See **[PLAN.md](PLAN.md)** for the full plan and **[CLAUDE.md](CLAUDE.md)** for the
 engineering guide. Everything runs locally and free.
 
+**Documentation:** [User Guide](docs/USER_GUIDE.md) — for plant staff, how to use
+every tab · [Admin & Developer Guide](docs/ADMIN_GUIDE.md) — setup, configuration,
+data onboarding, endpoints, troubleshooting.
+
 ## ⚡ Quickest start — one command
 No Docker, no API key, no heavy setup needed:
 ```bash
