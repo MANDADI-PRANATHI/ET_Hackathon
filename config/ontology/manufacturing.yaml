@@ -93,3 +93,24 @@ patterns:
   date: '\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}'
 
 pii_labels: [Person]
+
+# -----------------------------------------------------------------------------
+# CURATED COMPLIANCE RULES — same mechanism as oil & gas, different vocabulary.
+# Proves the ontology swap is real for the compliance agent too, not just for
+# node/edge labels.
+# -----------------------------------------------------------------------------
+compliance_rules:
+  - id: REQ-ISO9001-CNC-CAL
+    code: ISO-9001
+    clause: "CNC machining centres shall undergo calibration/inspection at intervals not exceeding 90 days to maintain process capability."
+    applies_to_class: CNCMachine
+    check_type: interval_days
+    interval_days: 90
+    description: "Quarterly calibration cycle for CNC machining centres (process control)."
+  - id: REQ-IATF-ROBOT-INSP
+    code: IATF-16949
+    clause: "Robotic work cells shall be inspected for safety-interlock integrity at intervals not exceeding 180 days."
+    applies_to_class: Robot
+    check_type: interval_days
+    interval_days: 182
+    description: "Semi-annual safety-interlock inspection for robotic work cells."

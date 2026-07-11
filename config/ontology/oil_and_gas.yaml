@@ -139,3 +139,25 @@ patterns:
 
 # Labels treated as sensitive personal data (role-based access in the copilot).
 pii_labels: [Person]
+
+# -----------------------------------------------------------------------------
+# CURATED COMPLIANCE RULES — the checkable rules the compliance agent runs by
+# default for this profile (plain code decides MET/GAP, never the LLM). This
+# is what makes the ontology swap real: flip the profile and the compliance
+# checks change with it, not just the node/edge vocabulary.
+# -----------------------------------------------------------------------------
+compliance_rules:
+  - id: REQ-OISD105-VALVE-INSP
+    code: OISD-STD-105
+    clause: "Pressure relief valves shall be tested/inspected at intervals not exceeding six months."
+    applies_to_class: Valve
+    check_type: interval_days
+    interval_days: 182
+    description: "Statutory 6-month inspection cycle for pressure safety/relief valves."
+  - id: REQ-OISD105-VESSEL-INSP
+    code: OISD-STD-105
+    clause: "Pressure vessels shall be internally inspected at intervals not exceeding the statutory period."
+    applies_to_class: Vessel
+    check_type: interval_days
+    interval_days: 365
+    description: "Annual inspection cycle for pressure vessels."

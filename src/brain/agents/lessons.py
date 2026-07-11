@@ -17,7 +17,7 @@ import datetime
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from brain.agents.compliance import GAP, run_compliance
+from brain.agents.compliance import GAP, RegRequirement, run_compliance
 from brain.graph.model import GraphModel
 from brain.graph.resolve import base_tag
 from brain.schema import SourceRef
@@ -69,16 +69,6 @@ def _other(g: GraphModel, edge, anchor_label="Asset"):
     key = ((edge.from_label, edge.from_value) if edge.from_label != anchor_label
            else (edge.to_label, edge.to_value))
     return g.nodes.get(key)
-
-
-def _asset_of(g: GraphModel, node_label: str, node_value: str) -> Optional[str]:
-    """Find the asset a record (NCR/WorkOrder/Incident) attaches to."""
-    for e in g.edges_from(node_label, node_value):
-        if e.to_label == "Asset":
-            return e.to_value
-    for e in g.edges_to("Asset", ""):  # not used; kept simple
-        pass
-    return None
 
 
 def find_patterns(g: GraphModel, min_count: int = 2) -> List[Pattern]:
@@ -151,6 +141,7 @@ def generate_warnings(
     readings: Optional[ReadingsSource] = None,
     today: Optional[datetime.date] = None,
     llm=None,
+    ruleset: Optional[List[RegRequirement]] = None,
 ) -> LessonsReport:
     today = today or datetime.date.today()
     report = LessonsReport(generated_on=today.isoformat())
@@ -158,7 +149,7 @@ def generate_warnings(
     pattern_findings = {p.key for p in report.patterns if p.kind == "recurring_finding"}
 
     # Signal 1: compliance gaps become high-severity warnings.
-    for gap in run_compliance(g, today=today).gaps:
+    for gap in run_compliance(g, ruleset=ruleset, today=today).gaps:
         report.warnings.append(Warning(
             asset=gap.asset, severity="High",
             message=f"Overdue statutory check ({gap.code}) — {gap.detail}",

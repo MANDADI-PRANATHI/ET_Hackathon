@@ -17,15 +17,13 @@ import datetime
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from brain.agents.compliance import RULESET
+from brain.agents.compliance import RULESET, RegRequirement
 from brain.graph.model import GraphModel
 from brain.schema import SourceRef
 from brain.stores.readings import ReadingsSource, TrendAnalysis, analyze
 
 # preventive-maintenance cadence by criticality (days)
 _PM_DAYS = {"High": 90, "Medium": 180, "Low": 365}
-_INTERVAL_BY_CLASS = {r.applies_to_class: r.interval_days
-                      for r in RULESET if r.interval_days}
 
 
 @dataclass
@@ -117,6 +115,7 @@ def investigate(
     readings: Optional[ReadingsSource] = None,
     today: Optional[datetime.date] = None,
     llm=None,
+    ruleset: Optional[List[RegRequirement]] = None,
 ) -> RCAReport:
     today = today or datetime.date.today()
     report = RCAReport(asset=asset, assessed_on=today.isoformat())
@@ -176,18 +175,19 @@ def investigate(
             due_date=(today + datetime.timedelta(days=7)).isoformat()))
 
     # Optimised schedule: next statutory inspection + next preventive maintenance.
-    report.schedule = _schedule(g, asset, inspections, work_orders, today)
+    report.schedule = _schedule(g, asset, inspections, work_orders, today, ruleset or RULESET)
 
     # Narrative: LLM if available, else a grounded template.
     report.narrative = _narrate(report, asset, llm)
     return report
 
 
-def _schedule(g, asset, inspections, work_orders, today) -> List[dict]:
+def _schedule(g, asset, inspections, work_orders, today, ruleset) -> List[dict]:
     out = []
     node = g.nodes.get(("Asset", asset))
     cls = (node.properties.get("asset_class") if node else "") or ""
-    interval = _INTERVAL_BY_CLASS.get(cls)
+    interval_by_class = {r.applies_to_class: r.interval_days for r in ruleset if r.interval_days}
+    interval = interval_by_class.get(cls)
     last_insp = max((_parse_date(i.properties.get("last_inspection_date"))
                      for i, _e in inspections
                      if _parse_date(i.properties.get("last_inspection_date"))), default=None)

@@ -41,6 +41,7 @@ class _State:
     kb: KnowledgeBase | None = None
     copilot: Copilot | None = None
     llm_ready: bool = False
+    onto: dict | None = None
 
 
 state = _State()
@@ -51,6 +52,7 @@ def _load() -> None:
     load) and wire in the LLM best-effort — it's optional narrative polish;
     /ask works without it via the copilot's extractive-answer fallback."""
     onto = load_ontology()
+    state.onto = onto
     state.kb = KnowledgeBase.load(STAGING, onto)
 
     llm = None
@@ -133,11 +135,13 @@ def create_app() -> FastAPI:
     @app.get("/rca/{asset}")
     def rca(asset: str) -> dict:
         import os as _os
+        from brain.agents.compliance import ruleset_from_ontology
         from brain.agents.rca import investigate
         from brain.stores.readings import FileReadingsSource
         readings = FileReadingsSource(_os.environ.get("READINGS_FILE",
                                                        "data/readings/readings.csv"))
-        report = investigate(state.kb.g, asset, readings=readings, llm=state.copilot.llm)
+        report = investigate(state.kb.g, asset, readings=readings, llm=state.copilot.llm,
+                             ruleset=ruleset_from_ontology(state.onto))
         return {
             "asset": report.asset, "assessed_on": report.assessed_on,
             "narrative": report.narrative,
@@ -153,11 +157,13 @@ def create_app() -> FastAPI:
     @app.get("/warnings")
     def warnings() -> dict:
         import os as _os
+        from brain.agents.compliance import ruleset_from_ontology
         from brain.agents.lessons import generate_warnings
         from brain.stores.readings import FileReadingsSource
         readings = FileReadingsSource(_os.environ.get("READINGS_FILE",
                                                        "data/readings/readings.csv"))
-        report = generate_warnings(state.kb.g, readings=readings)
+        report = generate_warnings(state.kb.g, readings=readings,
+                                   ruleset=ruleset_from_ontology(state.onto))
         return {
             "generated_on": report.generated_on,
             "warnings": [{"asset": w.asset, "severity": w.severity,
@@ -169,8 +175,8 @@ def create_app() -> FastAPI:
 
     @app.get("/compliance")
     def compliance() -> dict:
-        from brain.agents.compliance import run_compliance
-        report = run_compliance(state.kb.g)
+        from brain.agents.compliance import ruleset_from_ontology, run_compliance
+        report = run_compliance(state.kb.g, ruleset=ruleset_from_ontology(state.onto))
         return {
             "assessed_on": report.assessed_on,
             "summary": report.summary,

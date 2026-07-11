@@ -246,6 +246,25 @@ def check_requirement(
     return []   # threshold checks arrive with Level 4b readings
 
 
+def ruleset_from_ontology(onto: dict) -> List[RegRequirement]:
+    """Build the checkable ruleset from the active ontology profile's own
+    `compliance_rules` section — this is what makes compliance checking
+    actually swap with the profile (not just the node/edge vocabulary).
+    Falls back to the curated oil & gas RULESET if a profile defines none."""
+    rules = onto.get("compliance_rules")
+    if not rules:
+        return RULESET
+    return [
+        RegRequirement(
+            id=r["id"], code=r.get("code", ""), clause=r.get("clause", ""),
+            applies_to_class=r["applies_to_class"], check_type=r["check_type"],
+            interval_days=r.get("interval_days"), requires_label=r.get("requires_label"),
+            description=r.get("description", ""),
+        )
+        for r in rules
+    ]
+
+
 def run_compliance(
     g: GraphModel,
     ruleset: Optional[List[RegRequirement]] = None,
