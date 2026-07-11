@@ -45,6 +45,40 @@ in-app **"How it works"** tab for the live version of this table, and
 [CLAUDE.md](CLAUDE.md) for why this matters for plants that legally can't send
 data to a foreign cloud.
 
+### Going fully offline — local models via Ollama (optional, not downloaded for you)
+
+Everything above already runs with **zero LLM at all**. If you also want the
+polished narrative and drawing-reading to run on your own machine instead of
+the cloud, install [Ollama](https://ollama.com/download) and pull two models —
+balanced, mid-size (7B) so they run on a normal laptop CPU/GPU without needing
+a data-center card, and strong for this specific job (structured extraction /
+reading text off an image) rather than the biggest model available:
+
+| Job | Model | Pull | Size | Model page |
+|---|---|---|---|---|
+| Text — answers, compliance-rule authoring, RCA/warning narratives | **Qwen 2.5 7B Instruct** | `ollama pull qwen2.5:7b` | ~4.7 GB | [ollama.com/library/qwen2.5](https://ollama.com/library/qwen2.5) |
+| Vision — reading tags off drawings/P&IDs | **Qwen 2.5-VL 7B** | `ollama pull qwen2.5vl:7b` | ~6 GB | [ollama.com/library/qwen2.5vl](https://ollama.com/library/qwen2.5vl) |
+
+Why these two, specifically:
+- **Qwen2.5:7b** — best structured-output reliability (JSON-schema-fenced facts,
+  rule authoring) at a size that doesn't need a big GPU; smaller (3B-class)
+  models miss fields noticeably more often in our extraction path.
+- **Qwen2.5-VL:7b** — one of the strongest open vision-language models at this
+  size specifically for *reading printed text/labels in an image*, which is
+  exactly what tag-reading off a P&ID needs (validated end-to-end on a
+  synthetic test drawing — 7/7 tags read correctly, see `eval/vision_probe.py`).
+
+Then just flip one switch:
+```bash
+# in .env
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=qwen2.5:7b
+OLLAMA_VISION_MODEL=qwen2.5vl:7b
+```
+Nothing else changes — same endpoints, same UI, same citations. This swap has
+not been run live in this project yet (see CLAUDE.md's known limitations); the
+Gemini cloud path has been the one exercised end to end so far.
+
 **Want to stress-test with a large plant?** The sample size scales:
 ```bash
 SCALE=50  python scripts/generate_synthetic.py    # ~400 assets, 4k work orders (default)
@@ -66,7 +100,7 @@ The sections below explain each layer (Level 0 foundation → Level 5) in detail
 - **The ontology** (`config/ontology/oil_and_gas.yaml`) — the asset-centric "vocabulary", swappable per industry.
 - **The brain switch** (`src/brain/providers/llm.py`) — Gemini free tier *or* offline Ollama, one
   setting. Optional: retrieval, agents, and confidence scoring never depend on it (see "Runs fully
-  offline" below).
+  offline" above).
 - **Schema setup** — Neo4j constraints + a vector index, generated from the ontology.
 - **A synthetic corpus** — realistic work orders, inspections, permits, and non-conformances.
 - **A health-check** that confirms everything is wired up.
@@ -76,7 +110,8 @@ The sections below explain each layer (Level 0 foundation → Level 5) in detail
 ## Prerequisites (one-time)
 1. **Docker Desktop** (free) — https://www.docker.com/products/docker-desktop/  *(not yet installed on this machine)*
 2. **Python 3.11+** — your current `python3` is 3.9; install 3.11 (e.g. `brew install python@3.11`) and use it below.
-3. *(Optional, offline brain)* **Ollama** — https://ollama.com — then `ollama pull qwen2.5:7b`.
+3. *(Optional, offline brain)* **Ollama** — see "Going fully offline" above for
+   exact models, sizes, and pull commands.
 
 ---
 
