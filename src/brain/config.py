@@ -30,16 +30,6 @@ class Settings(BaseSettings):
     neo4j_user: str = "neo4j"
     neo4j_password: str = "password123"
 
-    # --- Postgres (app state + time-series readings) ---
-    postgres_dsn: str = "postgresql://brain:brain@localhost:5432/brain"
-
-    # --- MinIO (raw document storage) ---
-    minio_endpoint: str = "localhost:9000"
-    minio_access_key: str = "minioadmin"
-    minio_secret_key: str = "minioadmin"
-    minio_secure: bool = False
-    minio_bucket: str = "corpus"
-
     # --- document parsing ---
     docling_ocr: bool = False   # OCR off by default (born-digital PDFs); scans use the vision path
 

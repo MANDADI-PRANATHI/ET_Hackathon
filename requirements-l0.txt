@@ -1,7 +1,5 @@
 # Level 0 — foundation only. Each later level adds its own requirements file.
 pydantic-settings>=2.0
 pyyaml>=6.0
-neo4j>=5.20
-psycopg[binary]>=3.1
-minio>=7.2
+neo4j>=5.20              # only needed if you persist the graph (make docker-neo4j)
 google-genai>=0.8        # only needed if LLM_PROVIDER=gemini

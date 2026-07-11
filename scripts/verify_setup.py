@@ -1,4 +1,4 @@
-"""Level 0 health-check: ontology + Neo4j + Postgres + MinIO + the LLM provider.
+"""Level 0 health-check: ontology + Neo4j + the LLM provider.
 
 Run with:  make verify   (or:  python scripts/verify_setup.py)
 """
@@ -43,28 +43,6 @@ def check_neo4j() -> str:
     return f"connected at {settings.neo4j_uri}"
 
 
-def check_postgres() -> str:
-    import psycopg
-
-    with psycopg.connect(settings.postgres_dsn, connect_timeout=5) as conn:
-        conn.execute("SELECT 1")
-    return "connected"
-
-
-def check_minio() -> str:
-    from minio import Minio
-
-    client = Minio(
-        settings.minio_endpoint,
-        access_key=settings.minio_access_key,
-        secret_key=settings.minio_secret_key,
-        secure=settings.minio_secure,
-    )
-    if not client.bucket_exists(settings.minio_bucket):
-        client.make_bucket(settings.minio_bucket)
-    return f"bucket '{settings.minio_bucket}' ready"
-
-
 def check_llm() -> str:
     if settings.llm_provider == "gemini" and not settings.gemini_api_key:
         raise RuntimeError("no GEMINI_API_KEY (set it, or use LLM_PROVIDER=ollama)")
@@ -79,8 +57,6 @@ def main() -> None:
     results = [
         _check("Ontology profile", check_ontology),
         _check("Neo4j", check_neo4j),
-        _check("Postgres", check_postgres),
-        _check("MinIO", check_minio),
         _check("LLM provider", check_llm),
     ]
     passed = sum(results)
