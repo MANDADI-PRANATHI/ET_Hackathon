@@ -8,77 +8,51 @@ engineering guide. Everything runs locally and free.
 every tab · [Admin & Developer Guide](docs/ADMIN_GUIDE.md) — configuration, data
 onboarding, endpoints, the full internal pipeline, troubleshooting.
 
-## Production setup — a real deployment, with real documents
-
-This is the path for actually running the product against a real plant's
-documents, with the graph persisted in a real database.
-
-**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-(free) and Python 3.11+.
+## Setup — one command. This is genuinely enough, including for real use.
 
 ```bash
-# 1. Configure — pick ONE language-model path (or leave both blank; the
-#    product still answers correctly, just without a polished paragraph):
-cp .env.example .env
-#   -> Online (Gemini, free tier): paste a key from https://aistudio.google.com/apikey
-#      into GEMINI_API_KEY= in .env
-#   -> Offline (Ollama, runs on your own machine): set LLM_PROVIDER=ollama in
-#      .env — see "Going fully offline" below for which models to pull
-
-# 2. Python environment + dependencies
-python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
-# 3. Start the database layer (Neo4j for the persisted graph, Postgres, MinIO)
-make up
-make init          # create the Neo4j schema from the ontology
-make verify        # health-check every service + the LLM
-
-# 4. Add your real documents
-#    Drop files under data/corpus/<folder>/ — work_orders/, inspections/,
-#    incidents/, permits/, regulations/, manuals/, procedures/,
-#    operating_instructions/, emails/, drawings/, project_files/,
-#    quality_records/. Supported: .csv .tsv .txt .md .eml .pdf .docx .xlsx
-#    .pptx and images (P&IDs). Full folder-by-folder guide:
-#    docs/ADMIN_GUIDE.md.
-
-# 5. Ingest + build the graph
-make ingest            # structured + regex + AI prose extraction
-make build-graph       # merge into the asset-centric graph, load into Neo4j
-
-# 6. Run it
-make api                # http://localhost:8000/ui  ·  API docs at /docs
+python run.py --demo     # try it with a fake sample plant, OR:
+python run.py            # real use: reads whatever's in data/corpus/
 ```
+No Docker, no database, no `make`, no API key required for either. Opens at
+**http://localhost:8000/ui**. Ctrl+C stops it.
 
-Re-running steps 4–5 after adding more documents is safe — merging is
-idempotent, nothing gets duplicated. Neo4j's own browser is at
-http://localhost:7474 if you want to inspect the graph directly with Cypher.
+- **`--demo`** generates a fake synthetic sample plant so you can see every
+  feature immediately. Use this to try the product. Never use it for real data.
+- **No flag** generates nothing fake — it reads whatever real documents you've
+  put in `data/corpus/<folder>/` (see below) and serves the app the same way.
+  If `data/corpus/` is empty, it tells you so and stops instead of faking data.
 
-## Try it first — quick local demo (no Docker, no real documents needed)
-
-Before committing to the production setup, you can see the whole product
-working in under a minute:
-
-```bash
-python run.py --demo
-```
-`--demo` generates a full **synthetic** sample plant (fake work orders,
-inspections, incidents, a planted overdue-inspection gap, everything the UI
-needs to demo) and launches the app — no Docker, no database, no API key.
-**This is for trying the product only — never use `--demo` for real data.**
-
-```bash
-python run.py
-```
-Without `--demo`, nothing fake is generated. This reads whatever real
-documents you've already dropped into `data/corpus/` and launches the app the
-same way. If `data/corpus/` is empty it tells you so and stops — it will not
-silently show you fake data.
+**Adding your real documents:** drop files under `data/corpus/<folder>/` —
+`work_orders/`, `inspections/`, `incidents/`, `permits/`, `regulations/`,
+`manuals/`, `procedures/`, `operating_instructions/`, `emails/`, `drawings/`,
+`project_files/`, `quality_records/`. Supported formats: `.csv .tsv .txt .md
+.eml .pdf .docx .xlsx .pptx` and images (P&IDs). Then just re-run
+`python run.py` — merging is idempotent, so re-running after adding more
+files never duplicates anything.
 
 ```bash
 make test         # regression tests
 make scorecard    # every judged metric, computed live
 ```
+
+## Want smarter, cloud-polished answers? Add a free Gemini key
+
+The system already gives correct, cited answers with **no key at all** —
+composed locally from the same evidence. A key only makes the final answer
+read as a polished paragraph instead of a plainer, code-composed one.
+
+```bash
+cp .env.example .env
+```
+Then open `.env` and paste your key on this line:
+```
+GEMINI_API_KEY=your-key-here
+```
+Get a free key at **https://aistudio.google.com/apikey** (no credit card).
+Restart and you're done. This is the **online** path. Prefer to run the model
+fully offline on your own machine instead? See "Going fully offline" below.
 
 ## 🔌 Runs fully offline — the LLM is optional
 The system's core intelligence — finding the right evidence, connecting it
@@ -143,9 +117,35 @@ SCALE=50  python scripts/generate_synthetic.py    # ~400 assets, 4k work orders 
 SCALE=200 python scripts/generate_synthetic.py    # a huge plant
 SCALE=0   python scripts/generate_synthetic.py    # canonical demo assets only
 ```
-The canonical demo assets (incl. the overdue PSV-110B) are always included, so
-the benchmarks stay valid at any scale. The UI's **"Help"** tab explains the
-pipeline — why this is a knowledge graph + rule engine, not an API wrapper.
+
+---
+
+## Optional: persist the graph in a real database (Neo4j)
+
+Everything above already builds the knowledge graph and serves the API — no
+database required, no Docker required. The only reason to add Docker is if
+you specifically want the graph *persisted* in Neo4j (so it survives a
+restart without re-ingesting, and is browsable/queryable with Cypher) instead
+of rebuilt in memory each run. This is an add-on, not a requirement.
+
+**Install Docker first, if you don't have it:**
+- **Linux:** `curl -fsSL https://get.docker.com | sh` (official convenience
+  script; installs Docker Engine + the Compose plugin — no separate "Desktop"
+  app on Linux), then add yourself to the docker group so you don't need
+  `sudo` every time: `sudo usermod -aG docker $USER` (log out/in after).
+- **Mac / Windows:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free).
+
+**Then:**
+```bash
+make up              # start Neo4j (+ Postgres, MinIO)
+make init             # create the Neo4j schema from the ontology
+make verify           # health-check every service + the LLM
+make build-graph      # load the already-ingested graph into Neo4j
+```
+Neo4j's own browser is at http://localhost:7474 if you want to inspect the
+graph directly with Cypher. Everything else — `/ask`, compliance, RCA,
+warnings, the UI — works identically with or without this; the API never
+requires Neo4j to be running.
 
 ---
 
@@ -153,5 +153,5 @@ pipeline — why this is a knowledge graph + rule engine, not an API wrapper.
 
 If you want to run one pipeline stage at a time, see every `make` target
 explained, or just see the project layout — that's all in the
-**[Admin & Developer Guide](docs/ADMIN_GUIDE.md)**, clearly marked optional.
+**[Admin & Developer Guide](docs/ADMIN_GUIDE.md)**.
 See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the architecture diagram.

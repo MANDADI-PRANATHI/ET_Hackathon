@@ -8,17 +8,17 @@ for engineering conventions and design decisions see [../CLAUDE.md](../CLAUDE.md
 
 ## 1. Quick start
 
-For a real deployment (Docker, persisted Neo4j, your own documents), see
-"Production setup" in the README — that's the primary path now. This section
-covers the lightweight single-command runner, useful for development:
-
 ```bash
 python run.py --demo    # generates a fake synthetic sample plant, then launches
                         # (for trying the product only — never for real data)
-python run.py           # reads whatever's already in data/corpus/, generates
-                        # nothing fake; tells you if there's nothing to read yet
+python run.py           # real use: reads whatever's already in data/corpus/,
+                        # generates nothing fake; tells you if there's nothing
+                        # to read yet
 # UI:  http://localhost:8000/ui/index.html
 ```
+This is genuinely enough, including for real use — no Docker, no database
+required. See "Optional: persist the graph in a real database (Neo4j)" in the
+README if you specifically want the graph persisted and Cypher-browsable.
 
 Or step by step:
 
@@ -161,8 +161,8 @@ pipeline works as designed", not independent validation.
 
 ## Appendix: the full pipeline, stage by stage (for developers/judges who want to see how it works internally)
 
-For the Docker/Neo4j production setup, see "Production setup" in the README —
-that's the primary path for a real deployment. This appendix is for running
+For the optional Docker/Neo4j persistence setup, see "Optional: persist the
+graph in a real database (Neo4j)" in the README. This appendix is for running
 one pipeline stage at a time or inspecting its output; the internal stage
 names ("Level 1", "Level 2"...) are engineering shorthand from how this was
 built and don't mean anything is missing if you never see them.
