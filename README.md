@@ -8,6 +8,21 @@ engineering guide. Everything runs locally and free.
 every tab · [Admin & Developer Guide](docs/ADMIN_GUIDE.md) — configuration, the
 local (no-Docker) setup, per-stage commands, endpoints, troubleshooting.
 
+## Get the code
+
+**Fresh clone:**
+```bash
+git clone -b sathvik https://github.com/MANDADI-PRANATHI/ET_Hackathon.git
+cd ET_Hackathon
+```
+
+**Already cloned — pull the latest:**
+```bash
+cd ET_Hackathon
+git checkout sathvik
+git pull origin sathvik
+```
+
 ## Setup — Docker, one command
 
 **Install Docker first, if you don't have it:**
