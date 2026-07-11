@@ -3,16 +3,18 @@
 # docker-compose.yml), not baked into the image, so they stay organized on
 # your host disk and survive rebuilding the image.
 #
-# Deliberately lightweight: no docling, no torch (see requirements-docker.txt
-# for why). Reading real PDF files is a separate, one-time local step
-# (`python run.py --full`), not baked into the always-on server image.
+# Off by default: INSTALL_PDF=false. PDF/Word reading (Docling) pulls in
+# torch/transformers for layout analysis + OCR -- several GB -- so it's only
+# installed when explicitly requested (see docker-compose.yml / README).
 FROM python:3.11-slim
 
 WORKDIR /app
+ARG INSTALL_PDF=false
 
 # Install dependencies first so this layer is cached across code changes.
-COPY requirements-docker.txt requirements-l0.txt ./
-RUN pip install --no-cache-dir -r requirements-docker.txt
+COPY requirements-docker.txt requirements-l0.txt requirements-pdf.txt ./
+RUN pip install --no-cache-dir -r requirements-docker.txt \
+ && if [ "$INSTALL_PDF" = "true" ]; then pip install --no-cache-dir -r requirements-pdf.txt; fi
 
 COPY src/ src/
 COPY scripts/ scripts/

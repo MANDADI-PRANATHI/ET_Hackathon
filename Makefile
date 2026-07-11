@@ -10,21 +10,28 @@ demo:      ## ONE COMMAND: set up everything and launch the app + UI
 logs:      ## tail service logs
 	$(COMPOSE) logs -f
 
-# ── Docker: three simple choices, pick one ──────────────────────────────────
+# ── Docker: four addons, everything off (false) unless you ask for it ───────
+# Use ONE of these for a single need, or see README.md "Combining addons" for
+# the raw docker compose commands to turn on more than one at once.
 docker-build:  ## build the app image only — nothing started
 	$(COMPOSE) build app
 
-docker-app:    ## Choice 1 — app only, no addons
+docker-app:    ## app only, no addons — the default, use this unless you need one below
 	$(COMPOSE) up app -d
 	@echo "UI: http://localhost:8000/ui"
 
-docker-neo4j:  ## Choice 2 — app + Neo4j (persisted graph, Cypher browser at :7474)
+docker-neo4j:  ## + Neo4j — persisted graph, Cypher browser at :7474
 	$(COMPOSE) --profile neo4j up -d
 	@echo "UI: http://localhost:8000/ui   Neo4j browser: http://localhost:7474"
 
-docker-ollama: ## Choice 3 — app + Ollama (fully local LLM; run ollama-pull after)
+docker-ollama: ## + Ollama — fully local LLM (run ollama-pull after this)
 	$(COMPOSE) --profile ollama up -d
 	@echo "UI: http://localhost:8000/ui   Now run: make ollama-pull"
+
+docker-pdf:    ## + Docling — read real PDF/Word files (heavier build: torch, several GB)
+	INSTALL_PDF=true $(COMPOSE) build app
+	INSTALL_PDF=true $(COMPOSE) up app -d
+	@echo "UI: http://localhost:8000/ui   (PDF/Word reading enabled)"
 
 docker-down:   ## stop everything started by any docker-* target
 	$(COMPOSE) down
@@ -88,7 +95,7 @@ eval:      ## run all benchmarks (extraction + copilot + compliance + rca + less
 test:      ## run the regression suite (Level 0 deps only)
 	python -m pytest tests/ -q
 
-.PHONY: demo logs docker-build docker-app docker-neo4j docker-ollama docker-down \
-        ollama-pull install install-l1 install-l3 init verify synth ingest \
-        ingest-structured build-graph copilot api compliance rca lessons \
+.PHONY: demo logs docker-build docker-app docker-neo4j docker-ollama docker-pdf \
+        docker-down ollama-pull install install-l1 install-l3 init verify synth \
+        ingest ingest-structured build-graph copilot api compliance rca lessons \
         scorecard eval test

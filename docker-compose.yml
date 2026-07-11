@@ -1,8 +1,11 @@
-# Three simple choices — pick one, or none:
+# Everything off by default (false). Turn addons on with a Makefile target or
+# the raw commands in README.md — see that file for the full 4-addon table:
 #
-#   docker compose up app -d                    App only
-#   docker compose --profile neo4j up -d        App + Neo4j  (persisted graph, Cypher browser)
-#   docker compose --profile ollama up -d       App + Ollama (fully local LLM)
+#   docker compose up app -d                    App only, nothing else
+#   docker compose --profile neo4j up -d        + Neo4j  (persisted graph, Cypher browser)
+#   docker compose --profile ollama up -d       + Ollama (fully local LLM)
+#   INSTALL_PDF=true docker compose build app   + PDF/Word reading (Docling)
+#   ... any of the above combine — see README.md for the exact combined commands
 #
 # Real documents (data/corpus) and the ingested graph (data/staging) are
 # bind-mounted from this project folder, not hidden inside Docker — open them
@@ -12,7 +15,10 @@
 # removed because nothing in the codebase actually connects to either.)
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        INSTALL_PDF: ${INSTALL_PDF:-false}
     container_name: brain-app
     ports:
       - "8000:8000"       # UI: http://localhost:8000/ui  ·  API docs: /docs

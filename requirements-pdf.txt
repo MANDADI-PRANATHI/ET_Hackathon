@@ -1,0 +1,4 @@
+# The PDF/Word-reading addon (Docling). Not installed by default -- pulls in
+# torch/transformers for layout analysis + OCR, several GB. Only added to the
+# image when built with --build-arg INSTALL_PDF=true (see Dockerfile).
+docling>=2.0

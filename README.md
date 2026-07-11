@@ -120,17 +120,12 @@ SCALE=0   python scripts/generate_synthetic.py    # canonical demo assets only
 
 ---
 
-## Optional: Docker — three simple choices
+## Optional: Docker — everything off by default, turn on only what you need
 
 Everything above already builds the knowledge graph and serves the API — no
-database required, no Docker required. Docker only adds two independent
-things on top, and you pick at most one addon at a time (or none):
-
-| Choice | Command | Adds |
-|---|---|---|
-| **1. App only** | `make docker-app` | Just the containerized API + UI. No addons. |
-| **2. App + Neo4j** | `make docker-neo4j` | Persisted graph, Cypher-browsable at http://localhost:7474. |
-| **3. App + Ollama** | `make docker-ollama` | A fully local LLM (see "Going fully offline" above) — the narrative/vision layer never leaves your machine. |
+database required, no Docker required. Docker adds three independent
+addons on top of the plain app container. **All three default to off** —
+nothing extra runs unless you explicitly ask for it.
 
 **Install Docker first, if you don't have it:**
 - **Linux:** `curl -fsSL https://get.docker.com | sh` (official convenience
@@ -139,17 +134,44 @@ things on top, and you pick at most one addon at a time (or none):
   `sudo` every time: `sudo usermod -aG docker $USER` (log out/in after).
 - **Mac / Windows:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free).
 
-**Just want to check the image builds, without starting anything?**
+### Which command for which need
+
+| Your need | Command | What it turns on |
+|---|---|---|
+| Just run the product | `make docker-app` | Nothing extra. Default. Use this unless you need one below. |
+| Check the image builds, without starting anything | `make docker-build` | Nothing — build only, no containers started. |
+| Browse the graph with Cypher / persist it across restarts | `make docker-neo4j` | + Neo4j at http://localhost:7474 |
+| Run the LLM fully on your own machine | `make docker-ollama` | + Ollama (then `make ollama-pull` — see below) |
+| Read real PDF/Word files (not just CSV/text/email) | `make docker-pdf` | + Docling (heavier build/image — pulls in `torch`) |
+
+Each of these is a self-contained image — the Dockerfile already installs
+every Python dependency it needs and copies in all the code, so once built
+there's nothing else to separately `pip install` or run; `docker compose up`
+is the only command required.
+
+### Combining addons
+
+The four commands above cover one need at a time. To turn on more than one
+together, use the raw `docker compose` commands directly (`INSTALL_PDF` is a
+build-time switch, `--profile` is a start-time switch — combine as needed):
+
 ```bash
-make docker-build
+# PDF reading + Neo4j
+INSTALL_PDF=true docker compose --profile neo4j up --build -d
+
+# PDF reading + Ollama
+INSTALL_PDF=true docker compose --profile ollama up --build -d
+
+# Everything at once (Neo4j + Ollama + PDF reading)
+INSTALL_PDF=true docker compose --profile neo4j --profile ollama up --build -d
 ```
 
-Whichever choice you run, the app container reads whatever's in
+Whichever combination you run, the app container reads whatever's in
 `data/corpus/` on startup the same way `python run.py` does (no fake data,
 ever); add more documents live via "Connect knowledge" or by dropping files
 into `data/corpus/` and running `docker compose restart app`.
 
-**Choice 3 never downloads a model automatically** — that's a deliberate,
+**Ollama never downloads a model automatically** — that's a deliberate,
 separate step, since the models are several GB:
 ```bash
 make ollama-pull                     # pulls both models into the container
@@ -157,14 +179,9 @@ make ollama-pull                     # pulls both models into the container
 docker compose restart app
 ```
 
-The Docker image is intentionally lightweight — no Docling, no `torch` (see
-`requirements-docker.txt`). If you need to read real PDF/Word files, do that
-ingestion once locally with `python run.py --full`, rather than installing
-those heavy packages into the always-on container.
-
-`make docker-down` stops whichever choice you started. Everything else —
+`make docker-down` stops whichever combination you started. Everything else —
 `/ask`, compliance, RCA, warnings, the UI — works identically with or without
-any of this; the API never requires Neo4j or Ollama to be running.
+any of this; the API never requires Neo4j, Ollama, or Docling to be present.
 
 ---
 
