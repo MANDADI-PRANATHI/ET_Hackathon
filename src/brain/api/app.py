@@ -1,14 +1,23 @@
 """HTTP API for the copilot and the knowledge graph.
 
-Endpoints (consumed by the Next.js UI, but usable from curl for the demo):
-  GET  /health          liveness + what's loaded
-  GET  /roles           available roles for the copilot
-  POST /ask             {question, role} -> cited, confidence-scored answer
-  GET  /graph           the asset-centric graph, for the visualisation
+Endpoints (consumed by the single-file UI at /ui, all usable from curl):
+  GET  /health                    liveness + what's loaded
+  GET  /roles                     available roles for the copilot
+  POST /ask                       {question, role} -> cited, confidence-scored answer
+  GET  /assets                    lightweight asset list
+  GET  /assets/{tag}/timeline     one asset's dated history, chronological
+  GET  /graph                     the asset-centric graph, for the visualisation
+  GET  /scorecard                 live self-evaluation metrics
+  GET  /rca/{asset}               root-cause investigation for one asset
+  GET  /warnings                  proactive warnings + recurring patterns
+  GET  /compliance                compliance report + evidence package + drafts
+  POST /upload                    add one document -> ingest -> brain updates live
+  POST /sync                      re-scan the corpus folder for new/changed files
 
-The knowledge base is built once at startup from data/staging (no Neo4j needed).
-The LLM is optional: if none is configured, /ask still returns the retrieved,
-cited evidence with a computed confidence.
+The knowledge base is built once at startup from data/staging (no Neo4j needed)
+and refreshed in place whenever /upload or /sync ingests something new. The LLM
+is optional: if none is configured, /ask still returns the retrieved, cited
+evidence with a computed confidence.
 
 Run:  make api   (uvicorn brain.api.app:app --reload)
 """
@@ -19,17 +28,18 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from brain.copilot.answer import Copilot
 from brain.copilot.roles import DEFAULT_ROLE, ROLE_FRAMING
-from brain.graph.export import asset_list, asset_subgraph, graph_json
+from brain.graph.export import asset_list, asset_subgraph, asset_timeline, graph_json
 from brain.ontology import load_ontology
 from brain.retrieval.knowledge import KnowledgeBase
 
 STAGING = Path(os.environ.get("STAGING_DIR", "data/staging"))
+CORPUS = Path(os.environ.get("CORPUS_DIR", "data/corpus"))
 
 
 class AskRequest(BaseModel):
@@ -116,6 +126,84 @@ def create_app() -> FastAPI:
     @app.get("/assets")
     def assets() -> dict:
         return asset_list(state.kb.g)
+
+    @app.get("/assets/{asset}/timeline")
+    def timeline(asset: str) -> dict:
+        return asset_timeline(state.kb.g, asset)
+
+    @app.post("/upload")
+    async def upload(request: Request, filename: str,
+                     folder: str = "project_files") -> dict:
+        """Add one document to the brain, live: save into the corpus, ingest it
+        (deterministic extractors — tables, tags, dates; no API call), and
+        refresh the knowledge base so the very next /ask can use it."""
+        from brain.ingest.router import FOLDER_DOCTYPE
+        if folder not in FOLDER_DOCTYPE:
+            raise HTTPException(400, f"unknown folder '{folder}' — "
+                                     f"use one of {sorted(FOLDER_DOCTYPE)}")
+        name = Path(filename).name
+        if not name or name.startswith("."):
+            raise HTTPException(400, "a plain filename is required")
+        body = await request.body()
+        if not body:
+            raise HTTPException(400, "empty file")
+        dest = CORPUS / folder / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(body)
+
+        from brain.ingest.pipeline import ingest_file
+        staged = ingest_file(dest, CORPUS, state.onto, enable_vision=False)
+        if staged is None:
+            dest.unlink()   # don't keep a file the pipeline can't read
+            raise HTTPException(415, f"unsupported file type: {name}")
+        staged.write(STAGING)
+        _load()   # refresh the in-memory brain
+        return {
+            "doc_id": staged.document.id,
+            "doc_type": staged.document.doc_type,
+            "facts": len(staged.nodes) + len(staged.edges),
+            "passages": len(staged.chunks),
+            "assets_linked": sorted({n.value for n in staged.nodes
+                                     if n.label == "Asset"}),
+            "brain": {"assets": len(state.kb.g.nodes_by_label("Asset")),
+                      "chunks": len(state.kb.chunks)},
+        }
+
+    @app.post("/sync")
+    def sync() -> dict:
+        """Incrementally re-scan the corpus folder: ingest files that are new or
+        changed since they were last staged, leave the rest untouched. Point the
+        corpus at a OneDrive/SharePoint/network-drive synced folder and this is
+        the 'connect a folder, click Sync' onboarding path — no manual uploads."""
+        from brain.ingest.pipeline import _iter_files, ingest_file
+        from brain.ingest.router import DRAWING, route
+        ingested, failed = [], []
+        unchanged = 0
+        for path in _iter_files(CORPUS):
+            rt = route(path, CORPUS)
+            if not rt.reader_kind or rt.reader_kind == DRAWING:
+                continue   # unsupported here (drawings need the vision pass)
+            staged_json = STAGING / f"{rt.doc_id}.json"
+            if (staged_json.exists()
+                    and staged_json.stat().st_mtime >= path.stat().st_mtime):
+                unchanged += 1
+                continue
+            try:
+                staged = ingest_file(path, CORPUS, state.onto, enable_vision=False)
+            except Exception as e:  # noqa: BLE001 - one bad file must not stop the sync
+                failed.append({"file": str(path), "error": f"{type(e).__name__}: {e}"})
+                continue
+            if staged is None:
+                continue
+            staged.write(STAGING)
+            ingested.append(staged.document.id)
+        if ingested:
+            _load()   # refresh once, after the batch
+        return {
+            "ingested": ingested, "unchanged": unchanged, "failed": failed,
+            "brain": {"assets": len(state.kb.g.nodes_by_label("Asset")),
+                      "chunks": len(state.kb.chunks)},
+        }
 
     @app.get("/graph")
     def graph(asset: str = "", include_chunks: bool = False, limit: int = 28) -> dict:

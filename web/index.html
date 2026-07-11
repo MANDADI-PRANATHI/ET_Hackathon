@@ -220,6 +220,22 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
   vertical-align:-2px;margin-right:6px}
 @keyframes sp{to{transform:rotate(360deg)}}
 
+/* asset timeline (digital-twin history) */
+.tl{position:relative;margin:6px 0 0;padding-left:20px;border-left:2px solid hsl(var(--border))}
+.tl-ev{position:relative;padding:0 0 16px 12px}
+.tl-ev:last-child{padding-bottom:2px}
+.tl-ev::before{content:"";position:absolute;left:-26px;top:5px;width:9px;height:9px;
+  border-radius:50%;background:hsl(var(--primary));box-shadow:0 0 0 3px hsl(var(--accent))}
+.tl-date{font-family:var(--font-mono);font-size:11.5px;color:hsl(var(--primary));font-weight:600}
+.tl-msg{font-size:13px;margin:2px 0 1px}
+.tl-src{font-size:11.5px;color:hsl(var(--muted-foreground));font-family:var(--font-mono)}
+
+/* add-data */
+.drop{border:1.5px dashed hsl(var(--border));border-radius:10px;padding:26px 16px;
+  text-align:center;color:hsl(var(--muted-foreground));font-size:13.5px;cursor:pointer;
+  transition:border-color .15s,background .15s}
+.drop:hover,.drop.on{border-color:hsl(var(--primary));background:hsl(var(--accent))}
+
 /* ─── mobile ─────────────────────────────────────────────────────────────── */
 @media (max-width:560px){
   body{font-size:14.5px}
@@ -253,6 +269,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
     <button class="tab" data-v="graph">Knowledge Graph</button>
     <button class="tab" data-v="compliance">Compliance</button>
     <button class="tab" data-v="warnings">Warnings</button>
+    <button class="tab" data-v="add">Add data</button>
     <button class="tab" data-v="score">Scorecard</button>
     <button class="tab" data-v="how">How it works</button>
   </div>
@@ -294,6 +311,52 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
       </div>
       <div class="hr"></div>
       <div id="graphBox"><div class="empty">Loading graph…</div></div>
+    </div>
+    <div class="card">
+      <h3>Asset timeline</h3>
+      <div class="desc">The asset's whole documented life — every work order, inspection,
+        incident, NCR and permit merged into one chronological story, each with its source.</div>
+      <div id="tlBox"><div class="empty">Pick an asset above.</div></div>
+    </div>
+  </div>
+
+  <!-- ADD DATA -->
+  <div class="view" id="view-add">
+    <div class="card">
+      <h2>Add a document</h2>
+      <div class="desc">Drop any work order, inspection, incident report, permit or CSV export —
+        it's ingested on the spot and the very next question can use it. Tables and identifiers
+        are extracted by plain code, so this works fully offline.</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+        <div class="field" style="min-width:200px">
+          <label class="lbl" for="upFolder">Document category</label>
+          <select class="select" id="upFolder">
+            <option value="work_orders">Work orders</option>
+            <option value="inspections">Inspection reports</option>
+            <option value="incidents">Incident reports</option>
+            <option value="permits">Permits</option>
+            <option value="quality_records">Quality records</option>
+            <option value="project_files">Project files / registers</option>
+            <option value="regulations">Regulations</option>
+            <option value="manuals">Manuals</option>
+            <option value="procedures">Procedures (SOP)</option>
+            <option value="operating_instructions">Operating instructions</option>
+            <option value="emails">Emails</option>
+          </select>
+        </div>
+      </div>
+      <div class="drop" id="drop">Drop files here, or click to choose<br>
+        <span style="font-size:12px">.csv · .txt · .md · .eml · .pdf</span></div>
+      <input type="file" id="upFile" multiple style="display:none" />
+      <div id="upResult"></div>
+    </div>
+    <div class="card">
+      <h3>Or connect a folder</h3>
+      <div class="desc">Point the corpus at any folder — including a OneDrive, SharePoint or
+        network-drive synced folder — and Sutradhar picks up new and changed files on every sync.
+        Only what changed is re-read; nothing is re-processed twice.</div>
+      <button class="btn btn-primary" id="syncBtn">Sync corpus folder</button>
+      <div id="syncResult"></div>
     </div>
   </div>
 
@@ -473,6 +536,22 @@ async function drawAsset(asset){
   let d; try{ d=await (await fetch("/graph?asset="+encodeURIComponent(asset)+"&limit=28")).json(); }
   catch(e){ return; }
   drawGraph(d, asset);
+  drawTimeline(asset);
+}
+async function drawTimeline(asset){
+  $("#tlBox").innerHTML='<div class="empty">Loading…</div>';
+  let d; try{ d=await (await fetch("/assets/"+encodeURIComponent(asset)+"/timeline")).json(); }
+  catch(e){ $("#tlBox").innerHTML='<div class="empty">Timeline unavailable.</div>'; return; }
+  if(!d.events.length){ $("#tlBox").innerHTML='<div class="empty">No dated records for this asset yet.</div>'; return; }
+  const evs=d.events.map(ev=>{
+    const file=(ev.source||"").split(/[\\/]/).pop();
+    const st=ev.status?` <span class="badge outline">${esc(ev.status)}</span>`:"";
+    return `<div class="tl-ev"><div class="tl-date">${esc(ev.date)}</div>
+      <div class="tl-msg"><b style="font-weight:600">${esc(ev.kind)}</b> ${esc(ev.id)} — ${esc(ev.detail)}${st}</div>
+      ${file?`<div class="tl-src">${esc(file)}</div>`:""}</div>`;
+  }).join("");
+  const und=d.undated?`<div class="empty" style="padding:8px 0 0">+ ${d.undated} undated record(s)</div>`:"";
+  $("#tlBox").innerHTML=`<div class="tl">${evs}</div>${und}`;
 }
 const REL_COLORS=["#4f46e5","#0d9488","#c2410c","#9333ea","#0369a1","#b45309","#be123c","#4d7c0f","#0891b2"];
 function drawGraph(data, asset){
@@ -511,6 +590,53 @@ function drawGraph(data, asset){
       <b class="mono" style="color:hsl(var(--foreground))">${esc(asset)}</b>${cap}</div>
     <div class="legend">${legend}</div>${s}`;
 }
+
+/* ── add data ── */
+$("#drop").onclick=()=>$("#upFile").click();
+$("#drop").ondragover=e=>{e.preventDefault();$("#drop").classList.add("on");};
+$("#drop").ondragleave=()=>$("#drop").classList.remove("on");
+$("#drop").ondrop=e=>{e.preventDefault();$("#drop").classList.remove("on");uploadFiles(e.dataTransfer.files);};
+$("#upFile").onchange=e=>uploadFiles(e.target.files);
+async function uploadFiles(files){
+  const box=$("#upResult"); const folder=$("#upFolder").value;
+  for(const f of files){
+    const row=document.createElement("div");
+    row.className="warn Medium"; row.style.marginTop="12px";
+    row.innerHTML=`<div class="w-msg"><span class="spin"></span>Ingesting ${esc(f.name)}…</div>`;
+    box.prepend(row);
+    try{
+      const r=await fetch("/upload?filename="+encodeURIComponent(f.name)
+        +"&folder="+encodeURIComponent(folder),{method:"POST",body:f});
+      const d=await r.json();
+      if(!r.ok) throw new Error(d.detail||r.status);
+      const tags=(d.assets_linked||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join(" ");
+      row.className="warn Low"; row.style.marginTop="12px";
+      row.innerHTML=`<div class="w-top"><span class="badge b-MET">${ICON_CHECK}ingested</span>
+        <span class="mono" style="font-size:12px">${esc(f.name)}</span></div>
+        <div class="w-msg">${d.facts} facts · ${d.passages} passages ${tags?"· linked to "+tags:""}</div>
+        <div class="w-basis">brain now holds ${d.brain.assets} assets · ${d.brain.chunks} passages — ask about it right away</div>`;
+      fetch("/health").then(x=>x.json()).then(h=>{$("#health").innerHTML=
+        `<span class="dot"></span> ${h.assets} assets · ${h.chunks} passages · ${h.llm_ready?"cloud narrative on":"local mode"}`;});
+    }catch(err){
+      row.className="warn High"; row.style.marginTop="12px";
+      row.innerHTML=`<div class="w-msg"><span class="badge b-GAP">failed</span> ${esc(f.name)} — ${esc(String(err.message||err))}</div>`;
+    }
+  }
+  $("#upFile").value="";
+}
+$("#syncBtn").onclick=async()=>{
+  const box=$("#syncResult");
+  box.innerHTML=`<div class="empty" style="padding:12px 0 0"><span class="spin"></span>Scanning corpus folder…</div>`;
+  try{
+    const d=await (await fetch("/sync",{method:"POST"})).json();
+    const list=d.ingested.length?d.ingested.map(x=>`<span class="tag">${esc(x)}</span>`).join(" "):"nothing new";
+    const fails=(d.failed||[]).length?`<div class="w-basis">${d.failed.length} file(s) could not be read</div>`:"";
+    box.innerHTML=`<div class="warn Low" style="margin-top:12px">
+      <div class="w-top"><span class="badge b-MET">${ICON_CHECK}synced</span></div>
+      <div class="w-msg">${d.ingested.length} ingested · ${d.unchanged} unchanged — ${list}</div>
+      <div class="w-basis">brain now holds ${d.brain.assets} assets · ${d.brain.chunks} passages</div>${fails}</div>`;
+  }catch(e){ box.innerHTML=`<div class="warn High" style="margin-top:12px"><div class="w-msg">Sync failed — is the API running?</div></div>`; }
+};
 
 /* ── compliance ── */
 async function loadCompliance(){

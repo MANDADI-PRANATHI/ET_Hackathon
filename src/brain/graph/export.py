@@ -3,10 +3,16 @@
 Chunk nodes and their embeddings are dropped by default so the picture shows the
 asset-centric structure a human cares about — assets at the hub, with documents,
 work orders, inspections, incidents and regulations hanging off them.
+
+Also builds the per-asset TIMELINE ("digital-twin history"): every dated record
+connected to an asset — work orders, inspections, incidents, non-conformances,
+permits, CAPAs — merged into one chronological story. Pure code over facts the
+graph already holds; no model call.
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+import datetime
+from typing import Any, Dict, List, Optional
 
 from brain.graph.model import GraphModel
 
@@ -84,6 +90,74 @@ def asset_subgraph(g: GraphModel, asset_value: str, limit: int = 28) -> Dict[str
              if f"{e.from_label}:{e.from_value}" in present
              and f"{e.to_label}:{e.to_value}" in present]
     return {"nodes": nodes, "edges": edges, "total_connections": total, "shown": len(edges)}
+
+
+# Which property holds the event date, per record type, and how to describe it.
+_TIMELINE_LABELS = {
+    "WorkOrder":      ("date",                 "action"),
+    "Inspection":     ("last_inspection_date", "type"),
+    "Incident":       ("date",                 "title"),
+    "NonConformance": ("raised_date",          "finding"),
+    "Permit":         ("issue_date",           "work_type"),
+    "CAPA":           ("due_date",             "action"),
+}
+
+
+def _event_date(s: Optional[str]) -> Optional[str]:
+    """Normalise a date string to ISO (YYYY-MM-DD) or None if unparseable."""
+    if not s:
+        return None
+    s = str(s).strip()
+    try:
+        return datetime.date.fromisoformat(s[:10]).isoformat()
+    except ValueError:
+        pass
+    for fmt in ("%d-%m-%Y", "%d/%m/%Y", "%m/%d/%Y"):
+        try:
+            return datetime.datetime.strptime(s, fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None
+
+
+def asset_timeline(g: GraphModel, asset_value: str) -> Dict[str, Any]:
+    """One asset's whole documented life in date order — every connected work
+    order, inspection, incident, NCR, permit and CAPA, each with its source."""
+    if ("Asset", asset_value) not in g.nodes:
+        return {"asset": asset_value, "events": [], "undated": 0}
+
+    events: List[Dict[str, Any]] = []
+    undated = 0
+    for e in g.neighbours("Asset", asset_value):
+        other_key = ((e.from_label, e.from_value) if e.from_label != "Asset"
+                     else (e.to_label, e.to_value))
+        node = g.nodes.get(other_key)
+        if node is None or node.label not in _TIMELINE_LABELS:
+            continue
+        date_prop, detail_prop = _TIMELINE_LABELS[node.label]
+        date = _event_date(node.properties.get(date_prop))
+        if date is None:
+            undated += 1
+            continue
+        src = node.sources[0] if node.sources else None
+        events.append({
+            "date": date,
+            "kind": node.label,
+            "id": node.value,
+            "detail": node.properties.get(detail_prop) or "",
+            "status": node.properties.get("status") or node.properties.get("result") or "",
+            "source": src.path if src else None,
+            "confidence": node.confidence,
+        })
+    # One record can reach the asset over several edges — keep each event once.
+    seen: set = set()
+    unique = []
+    for ev in sorted(events, key=lambda x: (x["date"], x["kind"], x["id"])):
+        k = (ev["kind"], ev["id"])
+        if k not in seen:
+            seen.add(k)
+            unique.append(ev)
+    return {"asset": asset_value, "events": unique, "undated": undated}
 
 
 def asset_list(g: GraphModel) -> Dict[str, Any]:
