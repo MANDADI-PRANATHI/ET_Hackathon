@@ -15,6 +15,7 @@ Endpoints (consumed by the single-file UI at /ui, all usable from curl):
   GET  /compliance                compliance report + evidence package + drafts
   POST /upload                    add one document -> ingest -> brain updates live
   POST /sync                      re-scan the corpus folder for new/changed files
+  POST /dev/seed-demo-data        DEV ONLY: generate + ingest a fake sample plant
 
 The knowledge base is built once at startup from data/staging (no Neo4j needed)
 and refreshed in place whenever /upload or /sync ingests something new. The LLM
@@ -273,6 +274,27 @@ def create_app() -> FastAPI:
             _load()   # refresh once, after the batch
         return {
             "ingested": ingested, "unchanged": unchanged, "failed": failed,
+            "brain": {"assets": len(state.kb.g.nodes_by_label("Asset")),
+                      "chunks": len(state.kb.chunks)},
+        }
+
+    @app.post("/dev/seed-demo-data")
+    def seed_demo_data() -> dict:
+        """DEV ONLY: generate a fake synthetic sample plant into data/corpus and
+        ingest it. Never call this against a real deployment — it writes fake
+        documents alongside anything already there, mixing fake and real data
+        in the same brain with no way to tell them apart afterward."""
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
+        import generate_synthetic
+        from brain.ingest.pipeline import ingest_corpus
+
+        generate_synthetic.main()
+        counts = ingest_corpus(CORPUS, STAGING, state.onto, use_ai=False)
+        _load()
+        return {
+            "documents": counts["documents"], "nodes": counts["nodes"],
+            "chunks": counts["chunks"],
             "brain": {"assets": len(state.kb.g.nodes_by_label("Asset")),
                       "chunks": len(state.kb.chunks)},
         }

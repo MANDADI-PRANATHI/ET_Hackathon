@@ -21,7 +21,11 @@ required. The README's primary path is now Docker (`make docker-app` /
 `docker-ollama` / `docker-neo4j` / `docker-both`); this local path is the
 alternative for development or if you don't want Docker at all.
 
-**PDF-reading addon (Docling), off by default in both paths:** locally, run
+**Normal `.pdf`/`.docx`/`.xlsx`/`.pptx` need no addon at all** — `pypdf`/
+`python-docx`/`python-pptx`/`openpyxl` read born-digital files (real embedded
+text, not a scan) directly, no AI, always installed by default
+(`requirements-l0.txt`). **The Docling addon is only a fallback** for scanned
+pages (no embedded text layer) and legacy `.doc`/`.xls`/`.html`: locally, run
 `python run.py --full` once to install it and ingest; in Docker, build with
 `INSTALL_PDF=true docker compose build app` (not one of the four primary
 commands — see `requirements-pdf.txt` for why: it pulls in `torch`/
@@ -178,20 +182,20 @@ pipeline works as designed", not independent validation.
 |---|---|
 | Answers say "local mode" | LLM unreachable (no key, no internet, or 429 quota). Not an error — facts/citations unaffected. Gemini free tier: 20 req/day; 429s are retried ~3× with backoff, then fall back. |
 | `/compliance` empty after switching ontology profile | The staged corpus is from another industry — the new profile's asset classes don't exist in it. Ingest a corpus for that industry. |
-| PDF ingestion fails | `docling` not installed (optional, heavy). Plain text/CSV paths are unaffected. |
+| PDF ingestion fails | Only happens for scanned pages or legacy `.doc`/`.xls`/`.html` — those need `docling` (optional, heavy). Normal `.pdf .docx .xlsx .pptx` read directly with no addon. |
 | Drawings not ingested | The vision path needs a vision model and is skipped by upload/sync by design; use `make ingest` with a provider configured. Validated once on a synthetic P&ID (`python eval/vision_probe.py`, 7/7 tags read) — a real scanned drawing is untested. |
 | Neo4j connection errors on `build_graph` | Neo4j is optional — the API never needs it. Start it with `make docker-neo4j` only if you want persisted graph + Cypher access. |
-| Uploaded file rejected (415) | Unsupported extension. Supported: .csv .tsv .txt .md .eml (+ .pdf/.docx with docling). |
+| Uploaded file rejected (415) | Unsupported extension. Supported: .csv .tsv .txt .md .eml .pdf .docx .xlsx .pptx (+ legacy .doc/.xls/.html with the Docling addon). |
 
 ---
 
 ## Appendix: the full pipeline, stage by stage (for developers/judges who want to see how it works internally)
 
-For the optional Docker/Neo4j persistence setup, see "Optional: persist the
-graph in a real database (Neo4j)" in the README. This appendix is for running
-one pipeline stage at a time or inspecting its output; the internal stage
-names ("Level 1", "Level 2"...) are engineering shorthand from how this was
-built and don't mean anything is missing if you never see them.
+For the optional Docker/Neo4j persistence setup, see "Setup — Docker, one
+command" in the README. This appendix is for running one pipeline stage at a
+time or inspecting its output; the internal stage names ("Level 1", "Level
+2"...) are engineering shorthand from how this was built and don't mean
+anything is missing if you never see them.
 
 ### Stage by stage
 | Stage | What it does | Command |
@@ -217,12 +221,13 @@ mapping and reused asset tags. The corpus already ships with two real CSB
 investigation summaries and the actual OSHA 29 CFR 1910.119(j) text, each
 tracing to a citable public source.
 
-Supported formats: `.csv`/`.tsv` (code, no AI) · `.pdf .docx .doc .xlsx .xls
-.pptx .html` (via Docling — `make install-l1`) · `.txt .md .eml` (stdlib) ·
-`.png .jpg .jpeg .tif .tiff .bmp` (drawings, via a vision model). One
-unreadable file is skipped with a warning, never crashes the batch. After
-adding files: `make ingest && make build-graph` (MERGE is idempotent — no
-duplication on re-runs).
+Supported formats: `.csv`/`.tsv` (code, no AI) · `.txt .md .eml` (stdlib) ·
+`.pdf .docx .xlsx .pptx` (light readers — `pypdf`/`python-docx`/`python-pptx`/
+`openpyxl`, always installed, no AI) · legacy `.doc .xls .html` or scanned
+pages (Docling fallback — `make install-l1`) · `.png .jpg .jpeg .tif .tiff
+.bmp` (drawings, via a vision model). One unreadable file is skipped with a
+warning, never crashes the batch. After adding files: `make ingest && make
+build-graph` (MERGE is idempotent — no duplication on re-runs).
 
 ### Project layout
 ```
