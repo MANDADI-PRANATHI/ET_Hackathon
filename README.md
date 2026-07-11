@@ -120,13 +120,16 @@ SCALE=0   python scripts/generate_synthetic.py    # canonical demo assets only
 
 ---
 
-## Optional: persist the graph in a real database (Neo4j)
+## Optional: everything in Docker (app + local LLM + persisted graph)
 
 Everything above already builds the knowledge graph and serves the API — no
-database required, no Docker required. The only reason to add Docker is if
-you specifically want the graph *persisted* in Neo4j (so it survives a
-restart without re-ingesting, and is browsable/queryable with Cypher) instead
-of rebuilt in memory each run. This is an add-on, not a requirement.
+database required, no Docker required. Docker is an add-on for two separate
+things, and you can use either, both, or neither:
+- **Persisted graph** — Neo4j, so the graph survives a restart without
+  re-ingesting, and is browsable/queryable with Cypher.
+- **A fully local LLM** — an Ollama container serving the two models from
+  "Going fully offline" above, so the narrative/vision layer never leaves
+  your machine.
 
 **Install Docker first, if you don't have it:**
 - **Linux:** `curl -fsSL https://get.docker.com | sh` (official convenience
@@ -135,17 +138,33 @@ of rebuilt in memory each run. This is an add-on, not a requirement.
   `sudo` every time: `sudo usermod -aG docker $USER` (log out/in after).
 - **Mac / Windows:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free).
 
-**Then:**
+**Then, one command:**
 ```bash
-make up              # start Neo4j (+ Postgres, MinIO)
-make init             # create the Neo4j schema from the ontology
-make verify           # health-check every service + the LLM
-make build-graph      # load the already-ingested graph into Neo4j
+make docker-up
 ```
-Neo4j's own browser is at http://localhost:7474 if you want to inspect the
-graph directly with Cypher. Everything else — `/ask`, compliance, RCA,
-warnings, the UI — works identically with or without this; the API never
-requires Neo4j to be running.
+This builds the app image and starts it alongside Ollama, Neo4j, Postgres,
+and MinIO — UI at http://localhost:8000/ui, Neo4j's browser at
+http://localhost:7474. The app container reads whatever's in `data/corpus/`
+on startup the same way `python run.py` does (no fake data, ever); add more
+documents live via "Connect knowledge" or by dropping files into
+`data/corpus/` and running `docker compose restart app`.
+
+**No Ollama model is downloaded automatically** — that's a deliberate,
+separate step, since the models are several GB:
+```bash
+make ollama-pull                     # pulls both models into the container
+# then in .env: LLM_PROVIDER=ollama
+docker compose restart app
+```
+
+The Docker image is intentionally lightweight — no Docling, no `torch` (see
+`requirements-docker.txt`). If you need to read real PDF/Word files, do that
+ingestion once locally with `python run.py --full`, rather than installing
+those heavy packages into the always-on container.
+
+`make down` / `make docker-down` stops everything. Everything else — `/ask`,
+compliance, RCA, warnings, the UI — works identically with or without any of
+this; the API never requires Neo4j or Ollama to be running.
 
 ---
 
