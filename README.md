@@ -120,12 +120,13 @@ SCALE=0   python scripts/generate_synthetic.py    # canonical demo assets only
 
 ---
 
-## Optional: Docker — everything off by default, turn on only what you need
+## Optional: Docker — 4 direct commands, no file edits
 
 Everything above already builds the knowledge graph and serves the API — no
-database required, no Docker required. Docker adds three independent
-addons on top of the plain app container. **All three default to off** —
-nothing extra runs unless you explicitly ask for it.
+database required, no Docker required. If you do want Docker, there are
+exactly four commands, and none of them require editing any file —
+**the one exception is the Gemini key**, which needs `.env` (same file
+`python run.py` reads, so there's nothing Docker-specific to configure there).
 
 **Install Docker first, if you don't have it:**
 - **Linux:** `curl -fsSL https://get.docker.com | sh` (official convenience
@@ -134,54 +135,23 @@ nothing extra runs unless you explicitly ask for it.
   `sudo` every time: `sudo usermod -aG docker $USER` (log out/in after).
 - **Mac / Windows:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (free).
 
-### Which command for which need
-
-| Your need | Command | What it turns on |
+| Flag | Command | What it does |
 |---|---|---|
-| Just run the product | `make docker-app` | Nothing extra. Default. Use this unless you need one below. |
-| Check the image builds, without starting anything | `make docker-build` | Nothing — build only, no containers started. |
-| Browse the graph with Cypher / persist it across restarts | `make docker-neo4j` | + Neo4j at http://localhost:7474 |
-| Run the LLM fully on your own machine | `make docker-ollama` | + Ollama (then `make ollama-pull` — see below) |
-| Read real PDF/Word files (not just CSV/text/email) | `make docker-pdf` | + Docling (heavier build/image — pulls in `torch`) |
+| **1 — Normal** | `make docker-app` | App only. Gemini, if `GEMINI_API_KEY` is in `.env` — otherwise still works, just without the polished narrative. |
+| **2 — + Neo4j** | `make docker-neo4j` | Persisted graph, Cypher browser at http://localhost:7474. |
+| **3 — + Ollama** | `make docker-ollama` | Fully local LLM — **pulls both models automatically** (~11GB, real download, only real one), then switches the app to use them. One command, nothing else to run. |
+| **4 — Full** | `make docker-full` | Everything together: Neo4j + Ollama (auto-pulled) + PDF/Word reading (Docling). |
 
-Each of these is a self-contained image — the Dockerfile already installs
-every Python dependency it needs and copies in all the code, so once built
-there's nothing else to separately `pip install` or run; `docker compose up`
-is the only command required.
+`make docker-build` builds the image only, without starting anything.
+`make docker-down` stops whichever flag you started.
 
-### Combining addons
-
-The four commands above cover one need at a time. To turn on more than one
-together, use the raw `docker compose` commands directly (`INSTALL_PDF` is a
-build-time switch, `--profile` is a start-time switch — combine as needed):
-
-```bash
-# PDF reading + Neo4j
-INSTALL_PDF=true docker compose --profile neo4j up --build -d
-
-# PDF reading + Ollama
-INSTALL_PDF=true docker compose --profile ollama up --build -d
-
-# Everything at once (Neo4j + Ollama + PDF reading)
-INSTALL_PDF=true docker compose --profile neo4j --profile ollama up --build -d
-```
-
-Whichever combination you run, the app container reads whatever's in
-`data/corpus/` on startup the same way `python run.py` does (no fake data,
-ever); add more documents live via "Connect knowledge" or by dropping files
-into `data/corpus/` and running `docker compose restart app`.
-
-**Ollama never downloads a model automatically** — that's a deliberate,
-separate step, since the models are several GB:
-```bash
-make ollama-pull                     # pulls both models into the container
-# then in .env: LLM_PROVIDER=ollama
-docker compose restart app
-```
-
-`make docker-down` stops whichever combination you started. Everything else —
-`/ask`, compliance, RCA, warnings, the UI — works identically with or without
-any of this; the API never requires Neo4j, Ollama, or Docling to be present.
+Each of these is self-contained — the Dockerfile already installs every
+Python dependency and copies in all the code, so once it's running there's
+nothing else to separately `pip install` or `python run.py`. Whichever flag
+you use, the app container reads whatever's in `data/corpus/` on startup the
+same way `python run.py` does (no fake data, ever); add more documents live
+via "Connect knowledge" or by dropping files into `data/corpus/` and running
+`docker compose restart app`.
 
 ---
 
