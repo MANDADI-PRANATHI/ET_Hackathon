@@ -48,8 +48,14 @@ folders to manage, no restart, no separate ingestion command.
 - **Always supported, no addon:** `.csv .tsv .txt .md .eml .pdf .docx .xlsx .pptx`
   — normal digital files with real text (not a scan) read directly with plain
   code (`pypdf`/`python-docx`/`python-pptx`/`openpyxl`), no AI, no heavy install.
-- **Scanned pages, legacy `.doc`/`.xls`** fall back to the heavier Docling addon,
-  off by default (see [ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) if you need it).
+- **Scanned PDF pages** (a photo of a page, no text layer) are read by the
+  **same vision model already configured** for drawings (Gemini, or
+  `make docker-ollama`'s local model) — no extra install needed if you're
+  already using one of those.
+- **Only if no vision model is configured at all**, scanned pages and legacy
+  `.doc`/`.xls`/`.html` fall back to the heavier Docling addon — build with
+  `INSTALL_PDF=true docker compose build app` (Docker) or `python run.py --full`
+  (local). See [ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) for detail.
 - **Drawings/P&IDs (images)** need a vision model — automatic with
   `make docker-ollama`/`make docker-both`, or Gemini if you added a key above.
 

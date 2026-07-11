@@ -27,3 +27,8 @@ class TextResult:
     text: str = ""
     # (char_offset, page_number) breakpoints; empty for single-page / unknown.
     page_map: List[Tuple[int, int]] = field(default_factory=list)
+    # Set when the text came from a vision-model fallback (e.g. a scanned PDF
+    # page with no embedded text layer, read the same way a drawing is) —
+    # tells the pipeline to stamp this at vision-tier confidence + needs_review,
+    # not the reader's default tier. None means "use the reader's default".
+    extractor_hint: Optional[str] = None

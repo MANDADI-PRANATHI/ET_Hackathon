@@ -138,7 +138,11 @@ def ingest_file(
         mentioned.update(n.value for n in read.nodes if n.label == "Asset")
     elif isinstance(read, TextResult):
         staged.chunks = chunk_text(rt.doc_id, read.text, page_map=read.page_map)
-        extractor_kind = VISION if rt.reader_kind == DRAWING else REGEX
+        # A scanned PDF read via the vision-model fallback (document.py) is
+        # stamped at the same low-confidence/needs-review tier as a drawing,
+        # even though its reader_kind is DOCUMENT, not DRAWING.
+        extractor_kind = (VISION if rt.reader_kind == DRAWING
+                          or read.extractor_hint == "vision" else REGEX)
         for ch in staged.chunks:
             nodes, edges, tags = _mentions_from_chunk(ch, str(rt.path), px, extractor_kind)
             staged.nodes.extend(nodes)
@@ -153,15 +157,20 @@ def ingest_file(
                 mentioned.update(n.value for n in anodes if n.label == "Asset")
 
     # The document is ABOUT every asset it discusses (asset-centric hub links).
+    about_extractor_kind = (
+        STRUCTURED if isinstance(read, StructuredResult) else
+        VISION if rt.reader_kind == DRAWING
+        or (isinstance(read, TextResult) and read.extractor_hint == "vision") else
+        REGEX
+    )
     about_src = SourceRef(doc_id=rt.doc_id, path=str(rt.path))
-    about_conf = base(VISION if rt.reader_kind == DRAWING else
-                      STRUCTURED if isinstance(read, StructuredResult) else REGEX)
+    about_conf = base(about_extractor_kind)
     for tag in sorted(mentioned):
         staged.edges.append(EdgeFact(type="ABOUT", from_label="Document",
                                      from_value=rt.doc_id, to_label="Asset",
                                      to_value=tag, source=about_src,
                                      confidence=about_conf,
-                                     extractor=STRUCTURED if isinstance(read, StructuredResult) else REGEX))
+                                     extractor=about_extractor_kind))
     # Chunk PART_OF Document
     for ch in staged.chunks:
         staged.edges.append(EdgeFact(type="PART_OF", from_label="Chunk", from_value=ch.id,

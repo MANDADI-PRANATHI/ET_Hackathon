@@ -102,7 +102,7 @@ across documents by `(label, value)`; it never needs to know how a fact was foun
 | `ingest/patterns.py` | Deterministic regex extraction + tag/reg normalisation. Priority-resolved, non-overlapping; rejects document-reference false positives. |
 | `ingest/chunk.py` | Paragraph-aware passage windowing with overlap. |
 | `ingest/confidence.py` | Base confidences per extractor; agreement boost; final answer-confidence blend. |
-| `ingest/readers/` | `structured` (CSV→facts, no AI), `text` (.txt/.eml, stdlib), `document` (Docling PDFs, lazy), `drawing` (vision P&ID, lazy/injectable). |
+| `ingest/readers/` | `structured` (CSV→facts, no AI), `text` (.txt/.eml, stdlib), `document` (PDF/DOCX/XLSX/PPTX — light readers first, no AI; scanned PDF → vision-model fallback; Docling only as the last resort), `drawing` (vision P&ID, lazy/injectable). |
 | `ingest/router.py` | Folder→doc_type, extension→reader, stable doc ids. |
 | `ingest/extract.py` | AI prose extraction — schema-fenced, evidence-quoted, confidence-capped, LLM injected. |
 | `ingest/pipeline.py` | Orchestrates route→read→extract→chunk→stage. |

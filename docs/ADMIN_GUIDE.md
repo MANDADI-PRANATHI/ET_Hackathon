@@ -21,15 +21,34 @@ required. The README's primary path is now Docker (`make docker-app` /
 `docker-ollama` / `docker-neo4j` / `docker-both`); this local path is the
 alternative for development or if you don't want Docker at all.
 
-**Normal `.pdf`/`.docx`/`.xlsx`/`.pptx` need no addon at all** — `pypdf`/
-`python-docx`/`python-pptx`/`openpyxl` read born-digital files (real embedded
-text, not a scan) directly, no AI, always installed by default
-(`requirements-l0.txt`). **The Docling addon is only a fallback** for scanned
-pages (no embedded text layer) and legacy `.doc`/`.xls`/`.html`: locally, run
-`python run.py --full` once to install it and ingest; in Docker, build with
-`INSTALL_PDF=true docker compose build app` (not one of the four primary
-commands — see `requirements-pdf.txt` for why: it pulls in `torch`/
-`transformers`, several GB, for layout analysis + OCR).
+**Document reading is three tiers, cheapest first (see
+`src/brain/ingest/readers/document.py`):**
+
+1. **Light, always installed, no AI** — `pypdf`/`python-docx`/`python-pptx`/
+   `openpyxl` (`requirements-l0.txt`) read born-digital `.pdf`/`.docx`/`.xlsx`/
+   `.pptx` (real embedded text, not a scan) directly.
+2. **Vision-model fallback for a scanned PDF page** — a scanned page has no
+   embedded text layer, but a photo of a page *is* an image, so if step 1
+   finds under 40 characters and a vision-capable LLM is already configured
+   (Gemini, or Ollama via `make docker-ollama`/`docker-both`), the page is
+   rendered to an image (`pymupdf`, lightweight — no ML weight itself) and
+   read the same way a drawing/P&ID is read. No extra install if you already
+   have a vision model configured for anything else. Facts from this tier are
+   stamped `extractor=vision`, confidence 0.5, `needs_review=True` — same
+   treatment as a drawing, verified via `ingest_file()` on a synthetic
+   image-only PDF.
+3. **Docling — the true last resort**, only reached for legacy `.doc`/`.xls`/
+   `.html`, or a scanned PDF when *no* vision model is configured at all (tier
+   2 has nothing to call): locally, run `python run.py --full` once to
+   install it and ingest; in Docker, build with
+   `INSTALL_PDF=true docker compose build app` (not one of the four primary
+   commands — see `requirements-pdf.txt` for why: it pulls in `torch`/
+   `transformers`, several GB, for layout analysis + OCR that tier 1/2
+   usually make unnecessary).
+
+Vision calls are capped at 5 pages per scanned PDF (`_MAX_VISION_PAGES` in
+`document.py`) to protect free-tier quota (Gemini: 20 req/day) — a large
+scanned document will only have its first 5 pages read this way.
 
 Or step by step:
 
@@ -182,7 +201,7 @@ pipeline works as designed", not independent validation.
 |---|---|
 | Answers say "local mode" | LLM unreachable (no key, no internet, or 429 quota). Not an error — facts/citations unaffected. Gemini free tier: 20 req/day; 429s are retried ~3× with backoff, then fall back. |
 | `/compliance` empty after switching ontology profile | The staged corpus is from another industry — the new profile's asset classes don't exist in it. Ingest a corpus for that industry. |
-| PDF ingestion fails | Only happens for scanned pages or legacy `.doc`/`.xls`/`.html` — those need `docling` (optional, heavy). Normal `.pdf .docx .xlsx .pptx` read directly with no addon. |
+| PDF ingestion fails | Normal `.pdf .docx .xlsx .pptx` read directly, no addon. A scanned page falls back to the vision model already configured (Gemini/Ollama) — only fails if *neither* that *nor* Docling (optional, heavy) is available. |
 | Drawings not ingested | The vision path needs a vision model and is skipped by upload/sync by design; use `make ingest` with a provider configured. Validated once on a synthetic P&ID (`python eval/vision_probe.py`, 7/7 tags read) — a real scanned drawing is untested. |
 | Neo4j connection errors on `build_graph` | Neo4j is optional — the API never needs it. Start it with `make docker-neo4j` only if you want persisted graph + Cypher access. |
 | Uploaded file rejected (415) | Unsupported extension. Supported: .csv .tsv .txt .md .eml .pdf .docx .xlsx .pptx (+ legacy .doc/.xls/.html with the Docling addon). |
@@ -223,10 +242,12 @@ tracing to a citable public source.
 
 Supported formats: `.csv`/`.tsv` (code, no AI) · `.txt .md .eml` (stdlib) ·
 `.pdf .docx .xlsx .pptx` (light readers — `pypdf`/`python-docx`/`python-pptx`/
-`openpyxl`, always installed, no AI) · legacy `.doc .xls .html` or scanned
-pages (Docling fallback — `make install-l1`) · `.png .jpg .jpeg .tif .tiff
-.bmp` (drawings, via a vision model). One unreadable file is skipped with a
-warning, never crashes the batch. After adding files: `make ingest && make
+`openpyxl`, always installed, no AI) · a scanned PDF page (vision model, same
+one configured for drawings — no extra install) · legacy `.doc .xls .html`,
+or a scanned page with no vision model configured (Docling fallback —
+`make install-l1`) · `.png .jpg .jpeg .tif .tiff .bmp` (drawings, via a
+vision model). One unreadable file is skipped with a warning, never crashes
+the batch. After adding files: `make ingest && make
 build-graph` (MERGE is idempotent — no duplication on re-runs).
 
 ### Project layout
