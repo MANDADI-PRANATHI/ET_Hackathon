@@ -269,7 +269,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
     <button class="tab" data-v="graph">Knowledge Graph</button>
     <button class="tab" data-v="compliance">Compliance</button>
     <button class="tab" data-v="warnings">Warnings</button>
-    <button class="tab" data-v="add">Add data</button>
+    <button class="tab" data-v="add">Connect knowledge</button>
     <button class="tab" data-v="score">Scorecard</button>
     <button class="tab" data-v="how">How it works</button>
   </div>
@@ -310,6 +310,7 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
         <select class="select" id="assetSel"></select>
       </div>
       <div class="hr"></div>
+      <div id="sumBox"></div>
       <div id="graphBox"><div class="empty">Loading graph…</div></div>
     </div>
     <div class="card">
@@ -320,13 +321,16 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
     </div>
   </div>
 
-  <!-- ADD DATA -->
+  <!-- CONNECT KNOWLEDGE -->
   <div class="view" id="view-add">
     <div class="card">
-      <h2>Add a document</h2>
-      <div class="desc">Drop any work order, inspection, incident report, permit or CSV export —
-        it's ingested on the spot and the very next question can use it. Tables and identifiers
-        are extracted by plain code, so this works fully offline.</div>
+      <h2>Connect knowledge sources</h2>
+      <div class="desc">Three ways in, all live — the brain updates the moment a document arrives,
+        and the very next question can use it. Tables and identifiers are extracted by plain code,
+        so every path works fully offline.</div>
+      <div class="hr"></div>
+      <h3 style="margin-top:0">1 · Upload documents</h3>
+      <div class="desc">Drop any work order, inspection, incident report, permit or CSV export.</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
         <div class="field" style="min-width:200px">
           <label class="lbl" for="upFolder">Document category</label>
@@ -351,12 +355,20 @@ svg{width:100%;height:auto;background:hsl(var(--surface));border-radius:10px;
       <div id="upResult"></div>
     </div>
     <div class="card">
-      <h3>Or connect a folder</h3>
+      <h3>2 · Connect a folder</h3>
       <div class="desc">Point the corpus at any folder — including a OneDrive, SharePoint or
         network-drive synced folder — and Sutradhar picks up new and changed files on every sync.
         Only what changed is re-read; nothing is re-processed twice.</div>
       <button class="btn btn-primary" id="syncBtn">Sync corpus folder</button>
       <div id="syncResult"></div>
+    </div>
+    <div class="card">
+      <h3>3 · REST API</h3>
+      <div class="desc">Anything that can make an HTTP call — a CMMS export job, a scanner
+        watched-folder script, an ERP hook — can push documents straight in:</div>
+      <pre style="font-family:var(--font-mono);font-size:12px;background:hsl(var(--muted));
+        padding:12px 14px;border-radius:8px;overflow-x:auto;margin:0">curl -X POST "http://plant-server:8000/upload?filename=wo_4432.csv&amp;folder=work_orders" \
+     --data-binary @wo_4432.csv</pre>
     </div>
   </div>
 
@@ -536,7 +548,22 @@ async function drawAsset(asset){
   let d; try{ d=await (await fetch("/graph?asset="+encodeURIComponent(asset)+"&limit=28")).json(); }
   catch(e){ return; }
   drawGraph(d, asset);
+  drawSummary(asset);
   drawTimeline(asset);
+}
+async function drawSummary(asset){
+  let s; try{ s=await (await fetch("/assets/"+encodeURIComponent(asset)+"/summary")).json(); }
+  catch(e){ $("#sumBox").innerHTML=""; return; }
+  const ok=s.status==="No open risks";
+  const recs=Object.entries(s.records||{}).map(([k,v])=>`${v} ${k}`).join(" · ")||"—";
+  const risks=(s.open_risks||[]).map(r=>`<div class="w-basis" style="margin-top:4px">⚠ ${esc(r)}</div>`).join("");
+  $("#sumBox").innerHTML=`<div class="statrow" style="margin-bottom:6px">
+    <div class="stat"><div class="n" style="color:${ok?"hsl(var(--success))":"hsl(var(--danger))"}">${ok?"✓":s.open_risks.length}</div><div class="l">${esc(s.status)}</div></div>
+    <div class="stat"><div class="n">${s.last_activity?esc(s.last_activity):"—"}</div><div class="l">last activity</div></div>
+    <div class="stat"><div class="n">${s.documents}</div><div class="l">documents</div></div>
+    <div class="stat"><div class="n">${(s.related_assets||[]).length?esc(s.related_assets.join(", ")):"—"}</div><div class="l">related assets</div></div>
+    <div class="stat"><div class="n" style="font-size:15px">${recs}</div><div class="l">linked records</div></div>
+  </div>${risks}<div class="hr"></div>`;
 }
 async function drawTimeline(asset){
   $("#tlBox").innerHTML='<div class="empty">Loading…</div>';

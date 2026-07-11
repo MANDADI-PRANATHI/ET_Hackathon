@@ -71,6 +71,16 @@ def test_timeline_is_chronological_with_sources(client):
     assert all(e["source"] for e in t["events"])
 
 
+def test_asset_summary_reports_records_and_risks_from_facts(client):
+    s = client.get("/assets/PSV-110B/summary").json()
+    assert s["records"] == {"Inspection": 1, "WorkOrder": 1}
+    assert s["last_activity"] == "2025-11-06"
+    # PSV-110B's inspection is overdue relative to today -> a real, computed risk.
+    assert s["status"] == "Needs attention"
+    assert any("Compliance gap" in r for r in s["open_risks"])
+    assert client.get("/assets/NOPE-999/summary").status_code == 404
+
+
 def test_timeline_unknown_asset_is_empty_not_error(client):
     t = client.get("/assets/NOPE-999/timeline").json()
     assert t["events"] == []

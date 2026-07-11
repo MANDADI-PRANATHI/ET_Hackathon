@@ -6,6 +6,7 @@ Endpoints (consumed by the single-file UI at /ui, all usable from curl):
   POST /ask                       {question, role} -> cited, confidence-scored answer
   GET  /assets                    lightweight asset list
   GET  /assets/{tag}/timeline     one asset's dated history, chronological
+  GET  /assets/{tag}/summary      asset dashboard header (status, risks, records)
   GET  /graph                     the asset-centric graph, for the visualisation
   GET  /scorecard                 live self-evaluation metrics
   GET  /rca/{asset}               root-cause investigation for one asset
@@ -130,6 +131,58 @@ def create_app() -> FastAPI:
     @app.get("/assets/{asset}/timeline")
     def timeline(asset: str) -> dict:
         return asset_timeline(state.kb.g, asset)
+
+    @app.get("/assets/{asset}/summary")
+    def asset_summary(asset: str) -> dict:
+        """The asset's dashboard header: status, last activity, linked records,
+        open risks, related assets. Every number is computed from graph facts —
+        'Needs attention' means an actual open gap or NCR, not a vibe."""
+        from brain.agents.compliance import ruleset_from_ontology, run_compliance
+        from brain.graph.resolve import base_tag
+        g = state.kb.g
+        node = g.nodes.get(("Asset", asset))
+        if node is None:
+            raise HTTPException(404, f"unknown asset: {asset}")
+
+        counts: dict = {}
+        docs = set()
+        open_ncrs = []
+        for e in g.neighbours("Asset", asset):
+            other_label = e.from_label if e.from_label != "Asset" else e.to_label
+            other_value = e.from_value if e.from_label != "Asset" else e.to_value
+            if other_label == "Document":
+                docs.add(other_value)
+                continue
+            if other_label in ("Chunk",):
+                continue
+            counts[other_label] = counts.get(other_label, 0) + 1
+            if other_label == "NonConformance":
+                ncr = g.nodes.get((other_label, other_value))
+                if ncr and (ncr.properties.get("status") or "").lower() == "open":
+                    open_ncrs.append(other_value)
+
+        gaps = [r for r in run_compliance(
+            g, ruleset=ruleset_from_ontology(state.onto)).gaps if r.asset == asset]
+        events = asset_timeline(g, asset)["events"]
+
+        base = base_tag(asset)
+        related = sorted(a.value for a in g.nodes_by_label("Asset")
+                         if a.value != asset and base_tag(a.value) == base)
+
+        risks = ([f"Compliance gap: {r.detail}" for r in gaps]
+                 + [f"Open non-conformance {n}" for n in open_ncrs])
+        return {
+            "asset": asset,
+            "name": node.properties.get("name") or asset,
+            "asset_class": node.properties.get("asset_class") or "",
+            "criticality": node.properties.get("criticality") or "",
+            "status": "Needs attention" if risks else "No open risks",
+            "open_risks": risks,
+            "last_activity": events[-1]["date"] if events else None,
+            "documents": len(docs),
+            "records": counts,
+            "related_assets": related,
+        }
 
     @app.post("/upload")
     async def upload(request: Request, filename: str,
